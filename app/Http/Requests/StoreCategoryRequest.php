@@ -17,9 +17,12 @@ class StoreCategoryRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['sometimes', 'string', 'max:255', 'alpha_dash', Rule::unique('categories', 'slug')],
-            'description' => ['sometimes', 'string', 'max:2000'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
-            'image' => ['sometimes', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:2048'],
+            // Without this rule parent_id was silently dropped and subcategories could not be created.
+            'parent_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],
+            'sort_order' => ['sometimes', 'integer', 'min:0', 'max:9999'],
+            'image' => ['sometimes', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
     }
 
@@ -29,8 +32,7 @@ class StoreCategoryRequest extends FormRequest
             'name.required' => 'Category name is required.',
             'slug.alpha_dash' => 'Slug may only contain letters, numbers, dashes and underscores.',
             'slug.unique' => 'Category slug must be unique.',
-            'image.image' => 'The file must be a valid image.',
-            'image.max' => 'The image may not be larger than 2MB.',
+            'parent_id.exists' => 'Selected parent category does not exist.',
         ];
     }
 }

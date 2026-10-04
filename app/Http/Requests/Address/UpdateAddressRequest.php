@@ -2,28 +2,5 @@
 
 namespace App\Http\Requests\Address;
 
-use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
-
-class UpdateAddressRequest extends FormRequest
-{
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return false;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
-    {
-        return [
-            //
-        ];
-    }
-}
+/** Same fields as creating — the address form always submits the whole address. */
+class UpdateAddressRequest extends StoreAddressRequest {}

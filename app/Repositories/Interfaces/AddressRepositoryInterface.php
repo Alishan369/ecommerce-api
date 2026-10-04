@@ -2,17 +2,18 @@
 
 namespace App\Repositories\Interfaces;
 
+use App\Models\Address;
+use Illuminate\Support\Collection;
+
 interface AddressRepositoryInterface
 {
-    public function getUserAddresses(int $userId);
+    public function forUser(int $userId): Collection;
 
-    public function findById(int $id);
+    public function findForUser(int $userId, int $addressId): Address;
 
-    public function create(int $userId, array $data);
+    public function create(int $userId, array $data): Address;
 
-    public function update(int $id, array $data);
+    public function update(Address $address, array $data): Address;
 
-    public function delete(int $id);
-
-    public function setDefault(int $userId, int $addressId);
+    public function delete(Address $address): void;
 }

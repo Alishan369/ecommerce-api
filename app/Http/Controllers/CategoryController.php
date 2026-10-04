@@ -7,6 +7,8 @@ use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
 use App\Http\Resources\CategoryResource;
 use App\Repositories\Interfaces\CategoryRepositoryInterface;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
@@ -14,47 +16,67 @@ class CategoryController extends Controller
         private readonly CategoryRepositoryInterface $categoryRepository
     ) {}
 
-    public function index(CategoryFiltersRequest $request)
+    public function index(CategoryFiltersRequest $request): JsonResponse
     {
         $categories = $this->categoryRepository->getAllCategories($request->validated());
 
-        return CategoryResource::collection($categories);
+        return CategoryResource::collection($categories)->response();
     }
 
-    public function store(StoreCategoryRequest $request)
+    /**
+     * Nested active tree for public nav / mega-menu.
+     * GET /v1/categories/tree
+     */
+    public function tree(): JsonResponse
     {
+        $tree = $this->categoryRepository->getTree();
 
-        try {
-            $category = $this->categoryRepository->store($request->validated());
-
-            return new CategoryResource($category);
-        } catch (\Throwable $th) {
-            throw $th;
-        }
+        return CategoryResource::collection($tree)->response();
     }
 
-    public function update(UpdateCategoryRequest $request, $id)
+    /**
+     * Full tree including inactive categories, for the admin panel.
+     * GET /v1/admin/categories/tree
+     */
+    public function adminTree(): JsonResponse
     {
-        try {
-            $category = $this->categoryRepository->update($id, $request->validated());
+        $tree = $this->categoryRepository->getTree(includeInactive: true);
 
-            return new CategoryResource($category);
-        } catch (\Throwable $th) {
-            throw $th;
-        }
+        return CategoryResource::collection($tree)->response();
     }
 
-    public function destroy($id)
+    public function show(string $slug): JsonResponse
     {
-        try {
-            $category = $this->categoryRepository->delete($id);
+        $category = $this->categoryRepository->findActiveBySlug($slug);
 
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Category deleted successfully.',
-            ]);
-        } catch (\Throwable $th) {
-            throw $th;
-        }
+        return (new CategoryResource($category))->response();
+    }
+
+    public function store(StoreCategoryRequest $request): JsonResponse
+    {
+        $category = $this->categoryRepository->store($request->validated());
+
+        return (new CategoryResource($category))
+            ->response()
+            ->setStatusCode(201);
+    }
+
+    public function update(UpdateCategoryRequest $request, string $slug): JsonResponse
+    {
+        $category = $this->categoryRepository->update($slug, $request->validated());
+
+        return (new CategoryResource($category))->response();
+    }
+
+    public function destroy(Request $request, string $slug): JsonResponse
+    {
+        $onChildren = $request->query('on_children', 'reject');
+
+        $this->categoryRepository->delete($slug, $onChildren);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Category deleted successfully.',
+        ]);
     }
 }

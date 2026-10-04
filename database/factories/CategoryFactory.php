@@ -14,7 +14,7 @@ class CategoryFactory extends Factory
         return [
             'name' => ucwords($name),
             'slug' => Str::slug($name),
-            'image' => 'https://bellavitaorganic.com/cdn/shop/files/Offer-Mobile-_1_UPB-mobile.webp?v=1727436765&width=800',
+            'image' => null,
             'is_active' => true,
         ];
     }

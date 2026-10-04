@@ -65,7 +65,13 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'Asia/Kolkata'),
+
+    // Comma-separated proxy IPs/CIDRs (or *) whose X-Forwarded-* headers are trusted — e.g. Cloudflare.
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
+
+    // Generate https:// URLs (emails, image links) even if TLS ends at a proxy in front of the app.
+    'force_https' => (bool) env('FORCE_HTTPS', false),
 
     /*
     |--------------------------------------------------------------------------

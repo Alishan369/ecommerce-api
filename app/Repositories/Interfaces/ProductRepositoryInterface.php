@@ -9,6 +9,8 @@ interface ProductRepositoryInterface
 {
     public function getAllProducts(array $filters = []): LengthAwarePaginator;
 
+    public function getAdminProducts(array $filters = []): LengthAwarePaginator;
+
     public function store(array $data): Product;
 
     public function update(Product $product, array $data): Product;

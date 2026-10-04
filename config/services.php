@@ -41,4 +41,18 @@ return [
         ],
     ],
 
+    /*
+    | Razorpay — online payments (UPI, cards, net banking, wallets).
+    | Online checkout is offered only when both keys are set; otherwise the
+    | store falls back to Cash on Delivery alone. The key secret and webhook
+    | secret must never be exposed to the frontend.
+    */
+    'razorpay' => [
+        'key_id' => env('RAZORPAY_KEY_ID'),
+        'key_secret' => env('RAZORPAY_KEY_SECRET'),
+        'webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET'),
+        // Unpaid online orders are cancelled (and their stock released) after this many minutes.
+        'unpaid_order_ttl' => (int) env('RAZORPAY_UNPAID_ORDER_TTL', 30),
+    ],
+
 ];

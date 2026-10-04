@@ -2,34 +2,27 @@
 
 namespace Database\Seeders;
 
-use App\Models\Category;
-use App\Models\Product;
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Support\Demo;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
-     * Seed the application's database.
+     * `php artisan migrate:fresh --seed`
+     *
+     * A real production store gets the admin account and the catalogue only.
+     * Local machines and the public demo (DEMO_MODE=true) also get demo coupons,
+     * customers and 30 days of order history (CouponSeeder, DemoStoreSeeder).
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            AdminUserSeeder::class,
+            CatalogSeeder::class,
         ]);
 
-        Category::factory()
-            ->count(8)
-            ->create();
-
-        Product::factory()
-            ->count(3000)
-            ->create();
+        if (! app()->isProduction() || Demo::enabled()) {
+            $this->call([CouponSeeder::class, DemoStoreSeeder::class]);
+        }
     }
 }
