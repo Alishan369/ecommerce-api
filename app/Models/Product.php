@@ -42,10 +42,26 @@ class Product extends Model
         parent::boot();
 
         static::creating(function (Product $product) {
+            if (empty($product->sku)) {
+                $product->sku = static::generateSku($product->fragrance_family);
+            }
             if (empty($product->slug)) {
                 $product->slug = static::generateUniqueSlug($product->name);
             }
         });
+    }
+
+    /** SJ-<FAMILY>-<next number>, e.g. SJ-WOO-0042 — unique, human-readable, never typed in. */
+    public static function generateSku(?string $family = null): string
+    {
+        $code = $family ? strtoupper(substr($family, 0, 3)) : 'GEN';
+        $next = ((int) static::withTrashed()->max('id')) + 1;
+
+        do {
+            $sku = sprintf('SJ-%s-%04d', $code, $next++);
+        } while (static::withTrashed()->where('sku', $sku)->exists());
+
+        return $sku;
     }
 
     public static function generateUniqueSlug(string $name): string

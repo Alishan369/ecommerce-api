@@ -32,5 +32,18 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Hermetic: never use the developer's real Razorpay keys, demo mode or proxy settings. -->
+        <env name="RAZORPAY_KEY_ID" value=""/>
+        <env name="RAZORPAY_KEY_SECRET" value=""/>
+        <env name="RAZORPAY_WEBHOOK_SECRET" value=""/>
+        <env name="DEMO_MODE" value="false"/>
+        <env name="TRUSTED_PROXIES" value=""/>
+        <env name="FORCE_HTTPS" value="false"/>
+        <env name="FRONTEND_URL" value="https://shop.test"/>
+        <env name="APP_TIMEZONE" value="Asia/Kolkata"/>
+        <env name="SHOP_FREE_SHIPPING_THRESHOLD" value="499"/>
+        <env name="SHOP_SHIPPING_FEE" value="49"/>
+        <env name="ADMIN_EMAIL" value="admin@example.com"/>
+        <env name="ADMIN_PASSWORD" value="Admin@12345"/>
     </php>
 </phpunit>

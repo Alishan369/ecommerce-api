@@ -59,7 +59,6 @@ class AdminTest extends TestCase
         $product = $this->post('/api/v1/admin/products', [
             'category_id' => $cat->id,
             'name' => 'Velvet Oud',
-            'sku' => 'VO-100',
             'price' => 1299,
             'sale_price' => 999,
             'stock' => 10,
