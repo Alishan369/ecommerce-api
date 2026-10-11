@@ -81,20 +81,25 @@ class CartRepository implements CartRepositoryInterface
             ]);
         }
 
-        $existingItem = $cart->items()->where('product_id', $productId)->first();
-        $newQuantity = ($existingItem?->quantity ?? 0) + $quantity;
+        DB::transaction(function () use ($cart, $product, $quantity) {
+            // Lock the cart row: a double-click must not insert the same line twice (unique index → 500).
+            Cart::query()->whereKey($cart->id)->lockForUpdate()->first();
 
-        $this->guardQuantity($product, $newQuantity);
+            $existingItem = $cart->items()->where('product_id', $product->id)->first();
+            $newQuantity = ($existingItem?->quantity ?? 0) + $quantity;
 
-        if ($existingItem) {
-            $existingItem->update(['quantity' => $newQuantity]);
-        } else {
-            $cart->items()->create([
-                'product_id' => $productId,
-                'quantity' => $quantity,
-                'price' => $product->sale_price ?? $product->price,
-            ]);
-        }
+            $this->guardQuantity($product, $newQuantity);
+
+            if ($existingItem) {
+                $existingItem->update(['quantity' => $newQuantity]);
+            } else {
+                $cart->items()->create([
+                    'product_id' => $product->id,
+                    'quantity' => $quantity,
+                    'price' => $product->sale_price ?? $product->price,
+                ]);
+            }
+        });
 
         return $cart->fresh('items.product');
     }
@@ -116,11 +121,6 @@ class CartRepository implements CartRepositoryInterface
         $cart->items()->where('product_id', $productId)->firstOrFail()->delete();
 
         return $cart->fresh('items.product');
-    }
-
-    public function clear(Cart $cart): void
-    {
-        $cart->items()->delete();
     }
 
     private function guardQuantity(Product $product, int $quantity): void

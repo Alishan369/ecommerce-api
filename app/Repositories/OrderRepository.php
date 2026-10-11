@@ -102,7 +102,6 @@ class OrderRepository implements OrderRepositoryInterface
                 ...$data,
                 'email' => $user->email,
                 'user_id' => $user->id,
-                'guest_token' => null,
                 'order_number' => $this->newOrderNumber(),
                 'subtotal' => $totals['subtotal'],
                 'shipping_amount' => $totals['shipping'],
@@ -169,7 +168,7 @@ class OrderRepository implements OrderRepositoryInterface
             ->where('user_id', $userId)
             ->latest('placed_at')
             ->orderByDesc('id')
-            ->paginate(min(max($perPage, 1), 50));
+            ->paginate($perPage); // OrderController validates 1–50
     }
 
     public function getAdminOrders(array $filters = []): LengthAwarePaginator
@@ -196,32 +195,36 @@ class OrderRepository implements OrderRepositoryInterface
             })
             ->latest('placed_at')
             ->orderByDesc('id')
-            ->paginate(min((int) ($filters['per_page'] ?? 20), 100))
+            ->paginate((int) ($filters['per_page'] ?? 20))
             ->withQueryString();
     }
 
     public function updateStatus(Order $order, string $status): Order
     {
-        if ($order->status === $status) {
-            return $order->fresh(self::ITEM_RELATIONS);
-        }
+        $changed = DB::transaction(function () use ($order, $status) {
+            // Re-read under a row lock: an admin update, a customer cancel and the unpaid-order
+            // expiry can race, and a cancelled order's stock must be returned exactly once.
+            $locked = Order::query()->with('items')->lockForUpdate()->findOrFail($order->id);
 
-        if ($order->status === 'cancelled') {
-            throw ValidationException::withMessages([
-                'status' => 'Cancelled orders cannot be reopened. Ask the customer to place a new order.',
-            ]);
-        }
+            if ($locked->status === $status) {
+                return false;
+            }
 
-        if ($order->status === 'delivered') {
-            throw ValidationException::withMessages([
-                'status' => 'Delivered orders are final. Handle returns as a separate refund.',
-            ]);
-        }
+            if ($locked->status === 'cancelled') {
+                throw ValidationException::withMessages([
+                    'status' => 'Cancelled orders cannot be reopened. Ask the customer to place a new order.',
+                ]);
+            }
 
-        DB::transaction(function () use ($order, $status) {
+            if ($locked->status === 'delivered') {
+                throw ValidationException::withMessages([
+                    'status' => 'Delivered orders are final. Handle returns as a separate refund.',
+                ]);
+            }
+
             // Cancelling returns the reserved stock.
             if ($status === 'cancelled') {
-                foreach ($order->items as $item) {
+                foreach ($locked->items as $item) {
                     if ($item->product_id) {
                         Product::withTrashed()->whereKey($item->product_id)->increment('stock', $item->quantity);
                     }
@@ -231,35 +234,43 @@ class OrderRepository implements OrderRepositoryInterface
             $updates = ['status' => $status];
 
             // Cash on Delivery is collected by the courier at the door.
-            if ($status === 'delivered' && $order->payment_method === 'cod') {
+            if ($status === 'delivered' && $locked->payment_method === 'cod') {
                 $updates['payment_status'] = 'paid';
             }
 
-            $order->update($updates);
+            return $locked->update($updates);
         });
 
         $updated = $order->fresh(self::ITEM_RELATIONS);
-        $this->notifier->statusChanged($updated); // shipped / delivered / cancelled emails
+
+        if ($changed) {
+            $this->notifier->statusChanged($updated); // shipped / delivered / cancelled emails
+        }
 
         return $updated;
     }
 
     public function cancelForCustomer(Order $order): Order
     {
-        if (! in_array($order->status, self::CUSTOMER_CANCELLABLE, true)) {
-            throw ValidationException::withMessages([
-                'order' => 'This order can no longer be cancelled online — it may already be packed or shipped. Please contact support.',
-            ]);
-        }
+        return DB::transaction(function () use ($order) {
+            // Checked under the row lock, so a payment captured a moment ago is seen.
+            $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
 
-        if ($order->payment_status === 'paid') {
-            // Money has been captured — a refund needs a human, so route it to support.
-            throw ValidationException::withMessages([
-                'order' => 'This order is already paid. Please contact support to cancel it and receive a refund.',
-            ]);
-        }
+            if (! in_array($locked->status, self::CUSTOMER_CANCELLABLE, true)) {
+                throw ValidationException::withMessages([
+                    'order' => 'This order can no longer be cancelled online — it may already be packed or shipped. Please contact support.',
+                ]);
+            }
 
-        return $this->updateStatus($order, 'cancelled');
+            if ($locked->payment_status === 'paid') {
+                // Money has been captured — a refund needs a human, so route it to support.
+                throw ValidationException::withMessages([
+                    'order' => 'This order is already paid. Please contact support to cancel it and receive a refund.',
+                ]);
+            }
+
+            return $this->updateStatus($locked, 'cancelled');
+        });
     }
 
     /** Saves the checkout address to the address book unless an identical one already exists. */

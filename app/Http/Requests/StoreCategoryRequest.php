@@ -7,11 +7,6 @@ use Illuminate\Validation\Rule;
 
 class StoreCategoryRequest extends FormRequest
 {
-    // public function authorize(): bool
-    // {
-    //     return true;
-    // }
-
     public function rules(): array
     {
         return [
@@ -19,8 +14,7 @@ class StoreCategoryRequest extends FormRequest
             'slug' => ['sometimes', 'string', 'max:255', 'alpha_dash', Rule::unique('categories', 'slug')],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
-            // Without this rule parent_id was silently dropped and subcategories could not be created.
-            'parent_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],
+            'parent_id' => ['sometimes', 'nullable', 'integer', Rule::exists('categories', 'id')->withoutTrashed()],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:9999'],
             'image' => ['sometimes', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];

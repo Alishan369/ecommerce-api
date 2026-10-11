@@ -14,6 +14,7 @@ use App\Repositories\Interfaces\ProductRepositoryInterface;
 use App\Repositories\OrderRepository;
 use App\Repositories\ProductRepository;
 use App\Services\Payments\RazorpayGateway;
+use App\Support\Demo;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Middleware\TrustProxies;
@@ -22,12 +23,10 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         $this->app->bind(CategoryRepositoryInterface::class, CategoryRepository::class);
@@ -39,9 +38,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(RazorpayGateway::class, fn () => RazorpayGateway::fromConfig());
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         // Behind a CDN or load balancer (e.g. Cloudflare), trust its X-Forwarded-* headers so
@@ -61,42 +57,46 @@ class AppServiceProvider extends ServiceProvider
         // Used by the admin route group (`can:access-admin`). Authentication is not authorization.
         Gate::define('access-admin', fn (User $user) => $user->isAdmin());
 
-        RateLimiter::for('public', fn (Request $r) => Limit::perMinute(120)->by($r->ip())
-        );
+        // One policy for register, reset and change. Bcrypt ignores everything past 72 bytes.
+        Password::defaults(fn () => Password::min(8)->max(72));
 
+        $this->configureRateLimits();
+    }
+
+    private function configureRateLimits(): void
+    {
         // Keyed by user or IP — never by the client-supplied cart header, which could be rotated freely.
-        RateLimiter::for('cart', fn (Request $r) => Limit::perMinute(60)->by(
-            $r->user('sanctum')?->id ?: $r->ip()
-        )
-        );
+        $userOrIp = fn (Request $r) => $r->user('sanctum')?->id ?: $r->ip();
+        // Runs before validation, so a non-string email must not throw here (that would be a 500).
+        $email = fn (Request $r) => is_string($value = $r->input('email')) ? strtolower(trim($value)) : '';
 
-        RateLimiter::for('checkout', fn (Request $r) => Limit::perMinute(10)->by(
-            $r->user('sanctum')?->id ?: $r->ip()
-        )
-        );
+        RateLimiter::for('public', fn (Request $r) => Limit::perMinute(120)->by($r->ip()));
+        RateLimiter::for('cart', fn (Request $r) => Limit::perMinute(60)->by($userOrIp($r)));
+        RateLimiter::for('checkout', fn (Request $r) => Limit::perMinute(10)->by($userOrIp($r)));
+        RateLimiter::for('authenticated', fn (Request $r) => Limit::perMinute(90)->by($r->user()?->id ?: $r->ip()));
 
-        RateLimiter::for('auth', fn (Request $r) => [
+        RateLimiter::for('auth', fn (Request $r) => array_filter([
             Limit::perMinute(20)->by($r->ip()),
-            Limit::perMinute(5)->by(strtolower((string) $r->input('email')).'|'.$r->ip()),
-        ]);
+            Limit::perMinute(5)->by($email($r).'|'.$r->ip()),
+            // Caps guesses at one account even when they come from many IPs. The public demo's
+            // shared logins are exempt, or its visitors would lock each other out.
+            $email($r) !== '' && ! Demo::isDemoAccount($email($r)) ? Limit::perHour(30)->by($email($r)) : null,
+        ]));
 
         RateLimiter::for('order-lookup', fn (Request $r) => [
             Limit::perMinute(5)->by($r->ip()),
             Limit::perDay(30)->by($r->ip()),
         ]);
 
-        RateLimiter::for('authenticated', fn (Request $r) => Limit::perMinute(90)->by($r->user()?->id ?: $r->ip())
-        );
-
         // "Forgot password" sends an email — keep it from being used to spam an inbox.
         RateLimiter::for('password-reset', fn (Request $r) => [
             Limit::perMinute(5)->by($r->ip()),
-            Limit::perHour(5)->by(strtolower((string) $r->input('email'))),
+            Limit::perHour(5)->by($email($r)),
         ]);
 
         // Applying coupon codes: tight enough that guessing codes is impractical.
         RateLimiter::for('coupon', fn (Request $r) => [
-            Limit::perMinute(10)->by($r->user('sanctum')?->id ?: $r->ip()),
+            Limit::perMinute(10)->by($userOrIp($r)),
             Limit::perDay(100)->by($r->ip()),
         ]);
     }

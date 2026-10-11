@@ -2,19 +2,18 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Http\Requests\Concerns\NormalizesInput;
+use App\Support\India;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
 class RegisterRequest extends FormRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
+    use NormalizesInput;
 
     protected function prepareForValidation(): void
     {
-        $this->merge(['email' => strtolower(trim((string) $this->input('email')))]);
+        $this->normalize(['email' => 'strtolower', 'phone' => India::phone(...)]);
     }
 
     public function rules(): array
@@ -22,8 +21,8 @@ class RegisterRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'phone' => ['nullable', 'string', 'regex:/^[6-9][0-9]{9}$/'],
-            'password' => ['required', 'confirmed', Password::min(8)],
+            'phone' => ['nullable', 'string', 'regex:'.India::PHONE_PATTERN],
+            'password' => ['required', 'confirmed', Password::defaults()],
         ];
     }
 
@@ -31,7 +30,7 @@ class RegisterRequest extends FormRequest
     {
         return [
             'email.unique' => 'An account with this email already exists.',
-            'phone.regex' => 'Enter a valid 10-digit Indian mobile number.',
+            'phone.regex' => India::PHONE_MESSAGE,
         ];
     }
 }

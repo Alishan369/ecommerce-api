@@ -23,7 +23,7 @@ class PasswordResetController extends Controller
         $data = $request->validate(['email' => ['required', 'email', 'max:255']]);
 
         // INVALID_USER and RESET_THROTTLED are deliberately not revealed (no account enumeration).
-        PasswordBroker::sendResetLink(['email' => strtolower(trim($data['email']))]);
+        PasswordBroker::sendResetLink(['email' => strtolower($data['email'])]);
 
         return response()->json([
             'message' => 'If an account exists for that email, we\'ve sent a link to reset the password. It expires in 60 minutes.',
@@ -33,13 +33,12 @@ class PasswordResetController extends Controller
     /** POST /auth/reset-password — sets the new password and signs out every device. */
     public function reset(Request $request): JsonResponse
     {
-        $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
-
         $data = $request->validate([
             'token' => ['required', 'string'],
             'email' => ['required', 'email', 'max:255'],
-            'password' => ['required', 'confirmed', Password::min(8)],
+            'password' => ['required', 'confirmed', Password::defaults()],
         ]);
+        $data['email'] = strtolower($data['email']);
 
         $status = PasswordBroker::reset($data, function (User $user, string $password) {
             $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();

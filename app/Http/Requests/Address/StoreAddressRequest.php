@@ -2,39 +2,29 @@
 
 namespace App\Http\Requests\Address;
 
-use App\Support\IndianPhone;
+use App\Http\Requests\Concerns\NormalizesInput;
+use App\Support\India;
 use Illuminate\Foundation\Http\FormRequest;
 
+/** Routes are behind auth:sanctum; AddressRepository scopes every address to its owner. */
 class StoreAddressRequest extends FormRequest
 {
-    public function authorize(): bool
-    {
-        return true; // route is behind auth:sanctum; ownership is enforced in the repository
-    }
+    use NormalizesInput;
 
     protected function prepareForValidation(): void
     {
-        $merge = [];
-
-        if ($this->has('phone')) {
-            $merge['phone'] = IndianPhone::normalize($this->input('phone'));
-        }
-        if ($this->has('pincode')) {
-            $merge['pincode'] = preg_replace('/\s+/', '', (string) $this->input('pincode'));
-        }
-
-        $this->merge($merge);
+        $this->normalize(['phone' => India::phone(...), 'pincode' => India::pincode(...)]);
     }
 
     public function rules(): array
     {
         return [
             'name' => ['required', 'string', 'max:100'],
-            'phone' => ['required', 'string', 'regex:'.IndianPhone::PATTERN],
+            'phone' => ['required', 'string', 'regex:'.India::PHONE_PATTERN],
             'address_line' => ['required', 'string', 'min:5', 'max:1000'],
             'city' => ['required', 'string', 'max:100'],
             'state' => ['required', 'string', 'max:100'],
-            'pincode' => ['required', 'string', 'regex:/^[1-9][0-9]{5}$/'],
+            'pincode' => ['required', 'string', 'regex:'.India::PINCODE_PATTERN],
             'is_default' => ['sometimes', 'boolean'],
         ];
     }
@@ -42,8 +32,8 @@ class StoreAddressRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'phone.regex' => 'Enter a valid 10-digit Indian mobile number.',
-            'pincode.regex' => 'Enter a valid 6-digit PIN code.',
+            'phone.regex' => India::PHONE_MESSAGE,
+            'pincode.regex' => India::PINCODE_MESSAGE,
         ];
     }
 }

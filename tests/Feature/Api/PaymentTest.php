@@ -9,13 +9,13 @@ use App\Models\Product;
 use App\Services\Payments\RazorpayGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\BuildsShop;
 use Tests\TestCase;
 
 class PaymentTest extends TestCase
 {
-    use RefreshDatabase;
-
-    private const GUEST = ['X-Cart-Session-Id' => 'cart_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'];
+    use BuildsShop, RefreshDatabase;
 
     private const SECRET = 'test_key_secret';
 
@@ -45,11 +45,14 @@ class PaymentTest extends TestCase
             'category_id' => Category::factory()->create()->id,
             'price' => 1000, 'sale_price' => 800, 'stock' => 5, 'is_active' => true,
         ]);
+
+        // Checkout requires a signed-in customer.
+        Sanctum::actingAs($this->customer());
     }
 
     private function placeOnlineOrder(): array
     {
-        $this->postJson('/api/v1/cart/items', ['product_id' => $this->product->id, 'quantity' => 2], self::GUEST)->assertOk();
+        $this->postJson('/api/v1/cart/items', ['product_id' => $this->product->id, 'quantity' => 2])->assertOk();
 
         return $this->postJson('/api/v1/orders', [
             'email' => 'buyer@example.com',
@@ -60,7 +63,7 @@ class PaymentTest extends TestCase
             'shipping_state' => 'Tamil Nadu',
             'shipping_pincode' => '600020',
             'payment_method' => 'razorpay',
-        ], self::GUEST)->assertCreated()->json();
+        ])->assertCreated()->json();
     }
 
     private function signature(string $orderId, string $paymentId): string
@@ -124,18 +127,18 @@ class PaymentTest extends TestCase
             'razorpay_signature' => $this->signature('order_RZP0001', 'pay_ABC123'),
         ];
 
-        $this->postJson('/api/v1/payments/razorpay/verify', $payload, self::GUEST)
+        $this->postJson('/api/v1/payments/razorpay/verify', $payload)
             ->assertOk()
             ->assertJsonPath('data.payment_status', 'paid')
             ->assertJsonPath('data.status', 'confirmed')
             ->assertJsonPath('data.can_pay', false);
 
-        $this->postJson('/api/v1/payments/razorpay/verify', $payload, self::GUEST)->assertOk();
+        $this->postJson('/api/v1/payments/razorpay/verify', $payload)->assertOk();
         $this->assertDatabaseCount('payments', 1);
         $this->assertDatabaseHas('payments', ['gateway_payment_id' => 'pay_ABC123', 'status' => 'paid']);
     }
 
-    public function test_verify_rejects_bad_signature_and_foreign_sessions(): void
+    public function test_verify_rejects_bad_signature_and_other_customers(): void
     {
         $order = $this->placeOnlineOrder()['data'];
         $payload = [
@@ -145,11 +148,11 @@ class PaymentTest extends TestCase
             'razorpay_signature' => 'forged',
         ];
 
-        $this->postJson('/api/v1/payments/razorpay/verify', $payload, self::GUEST)->assertStatus(422);
+        $this->postJson('/api/v1/payments/razorpay/verify', $payload)->assertStatus(422);
 
         $payload['razorpay_signature'] = $this->signature('order_RZP0001', 'pay_ABC123');
-        $this->postJson('/api/v1/payments/razorpay/verify', $payload, ['X-Cart-Session-Id' => 'cart_ffffffff-ffff-4fff-8fff-ffffffffffff'])
-            ->assertNotFound();
+        Sanctum::actingAs($this->customer());
+        $this->postJson('/api/v1/payments/razorpay/verify', $payload)->assertNotFound();
 
         $this->assertSame('pending', Order::sole()->payment_status);
     }
@@ -181,7 +184,7 @@ class PaymentTest extends TestCase
 
         $this->assertSame('failed', Order::sole()->payment_status);
 
-        $this->postJson("/api/v1/orders/{$order['order_number']}/pay", [], self::GUEST)
+        $this->postJson("/api/v1/orders/{$order['order_number']}/pay", [])
             ->assertOk()
             ->assertJsonPath('data.order_id', 'order_RZP0001');
 
@@ -192,12 +195,12 @@ class PaymentTest extends TestCase
     {
         $order = $this->placeOnlineOrder()['data'];
 
-        $this->postJson("/api/v1/orders/{$order['order_number']}/cod", [], self::GUEST)
+        $this->postJson("/api/v1/orders/{$order['order_number']}/cod", [])
             ->assertOk()
             ->assertJsonPath('data.payment_method', 'cod')
             ->assertJsonPath('data.can_pay', false);
 
-        $this->postJson("/api/v1/orders/{$order['order_number']}/pay", [], self::GUEST)->assertStatus(422);
+        $this->postJson("/api/v1/orders/{$order['order_number']}/pay", [])->assertStatus(422);
     }
 
     public function test_unpaid_orders_expire_and_release_stock(): void
@@ -238,11 +241,11 @@ class PaymentTest extends TestCase
         config(['services.razorpay.key_secret' => null]);
         $this->app->forgetInstance(RazorpayGateway::class);
 
-        $this->postJson('/api/v1/cart/items', ['product_id' => $this->product->id, 'quantity' => 1], self::GUEST)->assertOk();
+        $this->postJson('/api/v1/cart/items', ['product_id' => $this->product->id, 'quantity' => 1])->assertOk();
         $this->postJson('/api/v1/orders', [
             'email' => 'buyer@example.com', 'shipping_name' => 'A', 'shipping_phone' => '9876543210',
             'shipping_address_line' => '4 Lake View Road', 'shipping_city' => 'Chennai', 'shipping_state' => 'Tamil Nadu',
             'shipping_pincode' => '600020', 'payment_method' => 'razorpay',
-        ], self::GUEST)->assertStatus(422)->assertJsonValidationErrors('payment_method');
+        ])->assertStatus(422)->assertJsonValidationErrors('payment_method');
     }
 }

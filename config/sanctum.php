@@ -37,7 +37,8 @@ return [
     |
     */
 
-    'guard' => ['web'],
+    // Bearer tokens only — the storefront never signs in with a session cookie.
+    'guard' => [],
 
     /*
     |--------------------------------------------------------------------------

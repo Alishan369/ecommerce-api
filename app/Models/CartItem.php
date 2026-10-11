@@ -22,9 +22,4 @@ class CartItem extends Model
         // Include soft-deleted products so the cart can show them as unavailable instead of erroring.
         return $this->belongsTo(Product::class)->withTrashed();
     }
-
-    public function getSubtotalAttribute(): float
-    {
-        return $this->price * $this->quantity;
-    }
 }

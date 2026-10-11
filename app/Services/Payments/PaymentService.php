@@ -162,12 +162,17 @@ class PaymentService
     /** Customer gives up on paying online and chooses Cash on Delivery for the same order. */
     public function switchToCod(Order $order): Order
     {
-        if (! $order->awaitingPayment()) {
-            throw ValidationException::withMessages(['order' => 'This order can no longer be changed.']);
-        }
+        DB::transaction(function () use ($order) {
+            // Under a row lock: the unpaid-order expiry or a payment webhook may be updating this order right now.
+            $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
 
-        $order->update(['payment_method' => 'cod', 'payment_status' => 'pending']);
-        $this->notifier->placed($order); // now a confirmed COD order
+            if (! $locked->awaitingPayment()) {
+                throw ValidationException::withMessages(['order' => 'This order can no longer be changed.']);
+            }
+
+            $locked->update(['payment_method' => 'cod', 'payment_status' => 'pending']);
+            $this->notifier->placed($locked); // now a confirmed COD order
+        });
 
         return $order->fresh('items');
     }

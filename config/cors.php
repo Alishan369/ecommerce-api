@@ -19,15 +19,19 @@ return [
 
     'allowed_methods' => ['*'],
 
-    // Comma-separated list in production, e.g. CORS_ALLOWED_ORIGINS=https://shop.example.com
-    // (the API uses Bearer tokens, not cookies, so '*' is safe for local development).
-    'allowed_origins' => array_map('trim', explode(',', env('CORS_ALLOWED_ORIGINS', '*'))),
+    // Comma-separated, e.g. CORS_ALLOWED_ORIGINS=https://shop.example.com. When unset: '*' locally
+    // (the API uses Bearer tokens, not cookies) and only the storefront (FRONTEND_URL) in production.
+    'allowed_origins' => array_map(
+        fn (string $origin) => rtrim(trim($origin), '/'),
+        explode(',', (string) env('CORS_ALLOWED_ORIGINS', env('APP_ENV') === 'production' ? env('FRONTEND_URL', '*') : '*')),
+    ),
 
     'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    // Lets the admin panel read the report filename on CSV downloads.
+    'exposed_headers' => ['Content-Disposition'],
 
     // Browsers cache the preflight for a day instead of sending an OPTIONS request before every call.
     'max_age' => (int) env('CORS_MAX_AGE', 86400),

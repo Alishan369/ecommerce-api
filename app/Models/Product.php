@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUniqueSlug;
+use App\Support\StoredImage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class Product extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasUniqueSlug, SoftDeletes;
 
     protected $fillable = [
         'category_id', 'name', 'slug', 'sku', 'description', 'short_description', 'image',
@@ -64,40 +64,14 @@ class Product extends Model
         return $sku;
     }
 
-    public static function generateUniqueSlug(string $name): string
-    {
-        $slug = Str::slug($name);
-        $original = $slug;
-        $count = 1;
-
-        while (static::withTrashed()->where('slug', $slug)->exists()) {
-            $slug = "{$original}-{$count}";
-            $count++;
-        }
-
-        return $slug;
-    }
-
-    public function getRouteKeyName(): string
-    {
-        return 'slug';
-    }
-
     public function category()
     {
         return $this->belongsTo(Category::class);
     }
 
-    /** Stored value is a path on the public disk, or an absolute URL for externally hosted images. */
     public function getImageUrlAttribute(): ?string
     {
-        if (! $this->image) {
-            return null;
-        }
-
-        return Str::startsWith($this->image, ['http://', 'https://'])
-            ? $this->image
-            : Storage::disk('public')->url($this->image);
+        return StoredImage::url($this->image);
     }
 
     public function getDiscountPercentAttribute(): ?int

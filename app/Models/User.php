@@ -2,16 +2,16 @@
 
 namespace App\Models;
 
+use App\Notifications\ResetPasswordLink;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use App\Notifications\ResetPasswordLink;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable , SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -34,15 +34,9 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
-    // Helper methods
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
-    }
-
-    public function isCustomer(): bool
-    {
-        return $this->role === 'customer';
     }
 
     public function addresses()

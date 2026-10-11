@@ -29,7 +29,7 @@ class CouponController extends Controller
                 ->orWhere('description', 'like', '%'.addcslashes($search, '%_\\').'%')))
             ->latest()
             ->orderByDesc('id')
-            ->paginate(min((int) ($filters['per_page'] ?? 20), 100))
+            ->paginate((int) ($filters['per_page'] ?? 20))
             ->withQueryString();
 
         return AdminCouponResource::collection($coupons);

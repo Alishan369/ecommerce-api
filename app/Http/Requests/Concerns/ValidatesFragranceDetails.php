@@ -11,24 +11,15 @@ use Illuminate\Validation\Rule;
  */
 trait ValidatesFragranceDetails
 {
-    protected function prepareFragranceDetails(): void
+    use NormalizesInput;
+
+    protected function prepareForValidation(): void
     {
-        $merge = [];
-
-        if ($this->has('notes') && is_string($this->input('notes'))) {
-            $decoded = json_decode($this->input('notes'), true);
-            $merge['notes'] = is_array($decoded) ? $decoded : $this->input('notes');
-        }
-
-        foreach (['gender', 'fragrance_family'] as $field) {
-            if ($this->filled($field)) {
-                $merge[$field] = strtolower(trim((string) $this->input($field)));
-            }
-        }
-
-        if ($merge) {
-            $this->merge($merge);
-        }
+        $this->normalize([
+            'notes' => fn (string $notes) => is_array($decoded = json_decode($notes, true)) ? $decoded : $notes,
+            'gender' => 'strtolower',
+            'fragrance_family' => 'strtolower',
+        ]);
     }
 
     protected function fragranceRules(): array

@@ -17,6 +17,11 @@ class AdminUserSeeder extends Seeder
     {
         $admin = config('shop.admin');
 
+        // An empty ADMIN_EMAIL= would otherwise create an admin who can't receive a reset link.
+        if (! filter_var($admin['email'], FILTER_VALIDATE_EMAIL)) {
+            throw new RuntimeException('Set ADMIN_EMAIL to a real email address in .env before seeding.');
+        }
+
         // The default password is printed in the README. A real (non-demo) production
         // store must set its own — in the public demo it's shown on the sign-in page anyway.
         if (app()->isProduction() && ! Demo::enabled()) {

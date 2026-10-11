@@ -5,17 +5,13 @@ namespace App\Repositories;
 use App\Models\Category;
 use App\Models\Product;
 use App\Repositories\Interfaces\ProductRepositoryInterface;
+use App\Support\StoredImage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class ProductRepository implements ProductRepositoryInterface
 {
-    private const DEFAULT_PER_PAGE = 20;
-
-    private const MAX_PER_PAGE = 100;
+    private const PER_PAGE = 20; // ProductFiltersRequest caps per_page at 100
 
     private const MAX_CATEGORY_DEPTH = 10;
 
@@ -29,7 +25,7 @@ class ProductRepository implements ProductRepositoryInterface
         $this->applyFilters($query, $filters, activeCategoriesOnly: true);
         $this->applySort($query, $filters['sort'] ?? 'latest');
 
-        return $query->paginate($this->resolvePerPage($filters['per_page'] ?? null))->withQueryString();
+        return $query->paginate((int) ($filters['per_page'] ?? self::PER_PAGE))->withQueryString();
     }
 
     /** Admin listing — includes inactive products. */
@@ -43,24 +39,17 @@ class ProductRepository implements ProductRepositoryInterface
         $this->applyFilters($query, $filters, activeCategoriesOnly: false);
         $this->applySort($query, $filters['sort'] ?? 'latest');
 
-        return $query->paginate($this->resolvePerPage($filters['per_page'] ?? null))->withQueryString();
+        return $query->paginate((int) ($filters['per_page'] ?? self::PER_PAGE))->withQueryString();
     }
 
     public function store(array $data): Product
     {
-        return Product::create($this->withStoredImage($data))->load('category');
+        return Product::create(StoredImage::fromInput($data, 'products'))->load('category');
     }
 
     public function update(Product $product, array $data): Product
     {
-        $previousImage = $product->image;
-        $data = $this->withStoredImage($data);
-
-        $product->update($data);
-
-        if (array_key_exists('image', $data) && $previousImage !== $product->image) {
-            $this->deleteLocalImage($previousImage);
-        }
+        StoredImage::update($product, $data, 'products');
 
         return $product->fresh('category');
     }
@@ -145,15 +134,6 @@ class ProductRepository implements ProductRepositoryInterface
         return $ids;
     }
 
-    private function resolvePerPage(?int $requested): int
-    {
-        if ($requested === null || $requested < 1) {
-            return self::DEFAULT_PER_PAGE;
-        }
-
-        return min($requested, self::MAX_PER_PAGE);
-    }
-
     private function applySort(Builder $query, ?string $sort): void
     {
         match ($sort) {
@@ -167,33 +147,5 @@ class ProductRepository implements ProductRepositoryInterface
                 ->orderBy('id', 'desc'),
             default => $query->latest()->orderBy('id', 'desc'), // 'latest' | 'newest'
         };
-    }
-
-    /**
-     * Replaces an uploaded file with its stored path, honours `remove_image`,
-     * and leaves `image` untouched when neither was sent.
-     */
-    private function withStoredImage(array $data): array
-    {
-        $image = $data['image'] ?? null;
-
-        if ($image instanceof UploadedFile) {
-            $data['image'] = $image->store('products', 'public');
-        } elseif (! empty($data['remove_image'])) {
-            $data['image'] = null;
-        } else {
-            unset($data['image']);
-        }
-
-        unset($data['remove_image']);
-
-        return $data;
-    }
-
-    private function deleteLocalImage(?string $path): void
-    {
-        if ($path && ! Str::startsWith($path, ['http://', 'https://'])) {
-            Storage::disk('public')->delete($path);
-        }
     }
 }

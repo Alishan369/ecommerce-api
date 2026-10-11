@@ -16,7 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Usage on routes:
  *   demo.guard           — always blocked in demo mode (e.g. deletes)
- *   demo.guard:uploads   — blocked only when a file is uploaded
+ *   demo.guard:uploads   — blocked only when a file is uploaded (any field)
  *   demo.guard:accounts  — blocked when it targets a shared demo account (password, profile)
  */
 class DemoGuard
@@ -30,7 +30,7 @@ class DemoGuard
         }
 
         $blocked = match ($mode) {
-            'uploads' => $request->hasFile('image'),
+            'uploads' => $request->allFiles() !== [],
             'accounts' => Demo::isDemoAccount($request->user('sanctum')?->email ?? $request->input('email')),
             default => true,
         };

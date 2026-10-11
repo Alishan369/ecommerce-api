@@ -13,16 +13,6 @@ class Cart extends Model
         return $this->hasMany(CartItem::class);
     }
 
-    public function getTotalAttribute(): float
-    {
-        return $this->items->sum(fn ($item) => $item->price * $item->quantity);
-    }
-
-    public function getItemCountAttribute(): int
-    {
-        return $this->items->sum('quantity');
-    }
-
     /**
      * What checkout would charge for products right now: current prices, and only
      * lines that can actually be ordered. Expects `items.product` to be loaded.

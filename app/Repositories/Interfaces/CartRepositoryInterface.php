@@ -20,6 +20,4 @@ interface CartRepositoryInterface
     public function updateItem(Cart $cart, int $productId, int $quantity): Cart;
 
     public function removeItem(Cart $cart, int $productId): Cart;
-
-    public function clear(Cart $cart): void;
 }

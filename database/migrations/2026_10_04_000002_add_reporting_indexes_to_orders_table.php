@@ -18,6 +18,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('orders', function (Blueprint $table) {
+            // MySQL dropped the user_id foreign key's own index once the composite one could serve it,
+            // so the key needs an index again before the composite can go (error 1553 otherwise).
+            $table->index('user_id');
             $table->dropIndex(['placed_at']);
             $table->dropIndex(['user_id', 'placed_at']);
         });

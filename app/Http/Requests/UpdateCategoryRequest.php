@@ -21,7 +21,7 @@ class UpdateCategoryRequest extends FormRequest
             ],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
-            'parent_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],
+            'parent_id' => ['sometimes', 'nullable', 'integer', Rule::exists('categories', 'id')->withoutTrashed()],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:9999'],
             'image' => ['sometimes', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'remove_image' => ['sometimes', 'boolean'],

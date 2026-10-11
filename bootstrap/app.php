@@ -2,11 +2,16 @@
 
 use App\Http\Middleware\DemoGuard;
 use App\Http\Middleware\SecurityHeaders;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -19,6 +24,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // There is no web login route; API guests get a 401 instead of a redirect.
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/');
+
+        // The few web routes (/, robots.txt, sitemap.xml) need no session or cookies — without this,
+        // every crawler hit wrote a row to the sessions table and got a Set-Cookie header.
+        $middleware->web(remove: [
+            EncryptCookies::class,
+            AddQueuedCookiesToResponse::class,
+            StartSession::class,
+            ShareErrorsFromSession::class,
+            ValidateCsrfToken::class,
+        ]);
 
         $middleware->append(SecurityHeaders::class);
 

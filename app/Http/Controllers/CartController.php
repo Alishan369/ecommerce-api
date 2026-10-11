@@ -92,15 +92,6 @@ class CartController extends Controller
         return new CartResource($cart->loadMissing('items.product'));
     }
 
-    public function clear(Request $request)
-    {
-        if ($cart = $this->cartRepository->findCart($request)) {
-            $this->cartRepository->clear($cart);
-        }
-
-        return response()->noContent();
-    }
-
     private function emptyCart(): Cart
     {
         return (new Cart)->setRelation('items', collect());

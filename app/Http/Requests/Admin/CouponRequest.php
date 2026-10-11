@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\NormalizesInput;
 use App\Models\Coupon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -9,16 +10,11 @@ use Illuminate\Validation\Rule;
 /** Create (POST) and update (PUT/PATCH) a coupon. Route is admin-gated. */
 class CouponRequest extends FormRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
+    use NormalizesInput;
 
     protected function prepareForValidation(): void
     {
-        if ($this->has('code')) {
-            $this->merge(['code' => Coupon::normalize($this->input('code'))]);
-        }
+        $this->normalize(['code' => Coupon::normalize(...)]);
     }
 
     public function rules(): array
@@ -38,7 +34,7 @@ class CouponRequest extends FormRequest
             'max_discount' => ['sometimes', 'nullable', 'numeric', 'gt:0'],
             'min_order_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'starts_at' => ['sometimes', 'nullable', 'date'],
-            'expires_at' => ['sometimes', 'nullable', 'date', ...($this->filled('starts_at') ? ['after:starts_at'] : [])],
+            'expires_at' => ['sometimes', 'nullable', 'date', ...(is_string($this->input('starts_at')) ? ['after:starts_at'] : [])],
             'usage_limit' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'per_user_limit' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'first_order_only' => ['sometimes', 'boolean'],

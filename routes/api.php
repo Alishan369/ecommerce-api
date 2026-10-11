@@ -1,9 +1,14 @@
 <?php
 
+use App\Http\Controllers\Admin\BannerController as AdminBannerController;
 use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Admin\ScentFamilyController as AdminScentFamilyController;
+use App\Http\Controllers\Admin\SiteMediaController as AdminSiteMediaController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BannerController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CouponController;
@@ -13,18 +18,13 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ScentFamilyController;
+use App\Http\Controllers\SiteMediaController;
 use App\Http\Controllers\StoreController;
+use App\Models\Order;
 use Illuminate\Support\Facades\Route;
 
-$orderNumberPattern = 'ORD-[0-9]{8}-[A-Z0-9]{8}';
-
-Route::get('/', fn () => response()->json([
-    'status' => 'success',
-    'message' => 'API is working!',
-    'version' => 'v1',
-]))->name('health');
-
-Route::prefix('v1')->name('v1.')->group(function () use ($orderNumberPattern) {
+Route::prefix('v1')->name('v1.')->group(function () {
 
     // Uptime monitors / Docker healthcheck: database, cache and storage.
     Route::get('health', HealthController::class)->middleware('throttle:public')->name('health');
@@ -65,10 +65,7 @@ Route::prefix('v1')->name('v1.')->group(function () use ($orderNumberPattern) {
         Route::get('store', StoreController::class)->name('store');
 
         Route::get('categories/tree', [CategoryController::class, 'tree'])->name('categories.tree');
-
-        Route::apiResource('categories', CategoryController::class)
-            ->parameters(['categories' => 'category:slug'])
-            ->only(['index', 'show']);
+        Route::get('categories/{category:slug}', [CategoryController::class, 'show'])->name('categories.show');
 
         Route::apiResource('products', ProductController::class)
             ->parameters(['products' => 'product:slug'])
@@ -78,6 +75,15 @@ Route::prefix('v1')->name('v1.')->group(function () use ($orderNumberPattern) {
 
         // "Available offers" — live, public coupons.
         Route::get('coupons', [CouponController::class, 'index'])->name('coupons.index');
+
+        // Home page banners (hero slider, promo row) — live ones only.
+        Route::get('banners', [BannerController::class, 'index'])->name('banners.index');
+
+        // Admin-replaced photos/videos for fixed storefront spots.
+        Route::get('media', SiteMediaController::class)->name('media.index');
+
+        // Scent families: names, colours, photos, order, product counts.
+        Route::get('scent-families', ScentFamilyController::class)->name('scent-families.index');
     });
 
     /* ---------------------------------------------------------------
@@ -86,7 +92,6 @@ Route::prefix('v1')->name('v1.')->group(function () use ($orderNumberPattern) {
      * ------------------------------------------------------------- */
     Route::prefix('cart')->name('cart.')->middleware('throttle:cart')->group(function () {
         Route::get('/', [CartController::class, 'show'])->name('show');
-        Route::delete('/', [CartController::class, 'clear'])->name('clear');
 
         Route::post('items', [CartController::class, 'addItem'])->name('items.add');
 
@@ -121,28 +126,28 @@ Route::prefix('v1')->name('v1.')->group(function () use ($orderNumberPattern) {
      | Signed-in customers: checkout, orders, payments, address book.
      | Login is required before an order can be placed.
      * ------------------------------------------------------------- */
-    Route::middleware('auth:sanctum')->group(function () use ($orderNumberPattern) {
+    Route::middleware('auth:sanctum')->group(function () {
 
-        Route::middleware('throttle:checkout')->group(function () use ($orderNumberPattern) {
+        Route::middleware('throttle:checkout')->group(function () {
             Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
 
             Route::post('orders/{orderNumber}/pay', [PaymentController::class, 'initiate'])
-                ->where('orderNumber', $orderNumberPattern)
+                ->where('orderNumber', Order::NUMBER_PATTERN)
                 ->name('orders.pay');
             Route::post('orders/{orderNumber}/cod', [PaymentController::class, 'switchToCod'])
-                ->where('orderNumber', $orderNumberPattern)
+                ->where('orderNumber', Order::NUMBER_PATTERN)
                 ->name('orders.cod');
             Route::post('orders/{orderNumber}/cancel', [OrderController::class, 'cancel'])
-                ->where('orderNumber', $orderNumberPattern)
+                ->where('orderNumber', Order::NUMBER_PATTERN)
                 ->name('orders.cancel');
             Route::post('payments/razorpay/verify', [PaymentController::class, 'verify'])
                 ->name('payments.razorpay.verify');
         });
 
-        Route::middleware('throttle:authenticated')->group(function () use ($orderNumberPattern) {
+        Route::middleware('throttle:authenticated')->group(function () {
             Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
             Route::get('orders/{orderNumber}', [OrderController::class, 'show'])
-                ->where('orderNumber', $orderNumberPattern)
+                ->where('orderNumber', Order::NUMBER_PATTERN)
                 ->name('orders.show');
 
             Route::apiResource('addresses', AddressController::class)
@@ -204,6 +209,46 @@ Route::prefix('v1')->name('v1.')->group(function () use ($orderNumberPattern) {
                 ->whereNumber('coupon')
                 ->middleware('demo.guard')
                 ->name('coupons.destroy');
+
+            Route::get('banners', [AdminBannerController::class, 'index'])->name('banners.index');
+            Route::post('banners', [AdminBannerController::class, 'store'])
+                ->middleware('demo.guard:uploads')
+                ->name('banners.store');
+            Route::match(['put', 'patch'], 'banners/{banner}', [AdminBannerController::class, 'update'])
+                ->whereNumber('banner')
+                ->middleware('demo.guard:uploads')
+                ->name('banners.update');
+            Route::delete('banners/{banner}', [AdminBannerController::class, 'destroy'])
+                ->whereNumber('banner')
+                ->middleware('demo.guard')
+                ->name('banners.destroy');
+
+            Route::get('media', [AdminSiteMediaController::class, 'index'])->name('media.index');
+            Route::post('media/{slot}', [AdminSiteMediaController::class, 'update'])
+                ->where('slot', '[a-z0-9.-]+')
+                ->middleware('demo.guard:uploads')
+                ->name('media.update');
+            Route::delete('media/{slot}', [AdminSiteMediaController::class, 'destroy'])
+                ->where('slot', '[a-z0-9.-]+')
+                ->middleware('demo.guard')
+                ->name('media.destroy');
+
+            Route::get('scent-families', [AdminScentFamilyController::class, 'index'])->name('scent-families.index');
+            // Registered before {key} so "reorder" isn't read as a family key.
+            Route::post('scent-families/reorder', [AdminScentFamilyController::class, 'reorder'])->name('scent-families.reorder');
+            Route::match(['post', 'patch'], 'scent-families/{key}', [AdminScentFamilyController::class, 'update'])
+                ->where('key', '[a-z]+')
+                ->middleware('demo.guard:uploads')
+                ->name('scent-families.update');
+
+            // Reports: preview (JSON) and full CSV download for a date range.
+            Route::get('reports/{type}', [AdminReportController::class, 'show'])
+                ->where('type', '[a-z-]+')
+                ->name('reports.show');
+            Route::get('reports/{type}/download', [AdminReportController::class, 'download'])
+                ->where('type', '[a-z-]+')
+                ->middleware('throttle:10,1')
+                ->name('reports.download');
         });
 });
 

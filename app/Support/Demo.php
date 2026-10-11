@@ -23,8 +23,9 @@ final class Demo
         ];
     }
 
-    public static function isDemoAccount(?string $email): bool
+    /** Takes raw input too (DemoGuard runs before validation), so anything but a string is simply "no". */
+    public static function isDemoAccount(mixed $email): bool
     {
-        return $email !== null && in_array(strtolower(trim($email)), array_column(self::accounts(), 'email'), true);
+        return is_string($email) && in_array(strtolower(trim($email)), array_column(self::accounts(), 'email'), true);
     }
 }

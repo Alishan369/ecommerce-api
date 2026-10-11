@@ -9,8 +9,11 @@ class Order extends Model
 {
     public const STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
 
+    /** ORD-<Ymd>-<8 chars>, e.g. ORD-20261005-AB12CD34 (OrderRepository::newOrderNumber). */
+    public const NUMBER_PATTERN = 'ORD-[0-9]{8}-[A-Z0-9]{8}';
+
     protected $fillable = [
-        'user_id', 'guest_token', 'order_number', 'email',
+        'user_id', 'order_number', 'email',
         'shipping_name', 'shipping_phone', 'shipping_address_line',
         'shipping_city', 'shipping_state', 'shipping_pincode',
         'subtotal', 'shipping_amount', 'discount_amount', 'coupon_id', 'coupon_code', 'total',

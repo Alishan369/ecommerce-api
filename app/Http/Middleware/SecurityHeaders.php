@@ -8,8 +8,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Baseline security headers for every response from Laravel (API, sitemap,
- * health). The storefront's static files get the same set from the web server
- * (deploy/docker/caddy/Caddyfile), so both halves of the site behave alike.
+ * health). The storefront's static files get the same set from its host
+ * (frontend/vercel.json), so both halves of the site behave alike.
  */
 class SecurityHeaders
 {
@@ -27,6 +27,16 @@ class SecurityHeaders
         $headers->remove('X-Powered-By');
         if (function_exists('header_remove') && ! headers_sent()) {
             header_remove('X-Powered-By');
+        }
+
+        if ($request->is('api/*')) {
+            // JSON only: nothing in an API response may load resources or be framed.
+            $headers->set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+
+            // Signed-in responses carry personal data (orders, addresses) — keep them out of browser and proxy caches.
+            if ($request->bearerToken()) {
+                $headers->set('Cache-Control', 'no-store, private');
+            }
         }
 
         // Only over HTTPS in production — sending HSTS on http://localhost would pin dev browsers to https.

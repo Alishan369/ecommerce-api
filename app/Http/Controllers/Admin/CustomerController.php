@@ -35,7 +35,7 @@ class CustomerController extends Controller
             ->withSum(['orders as total_spent' => $notCancelled], 'total')
             ->withMax('orders as last_order_at', 'placed_at')
             ->latest()
-            ->paginate(min((int) ($filters['per_page'] ?? 20), 100))
+            ->paginate((int) ($filters['per_page'] ?? 20))
             ->withQueryString();
 
         return CustomerResource::collection($customers);

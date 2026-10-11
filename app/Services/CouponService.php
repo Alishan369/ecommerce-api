@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\Money;
 use App\Support\Shipping;
 
 /**
@@ -66,7 +67,7 @@ class CouponService
 
         $minimum = (float) $coupon->min_order_amount;
         if ($subtotal < $minimum) {
-            return 'Add '.self::money($minimum - $subtotal).' more to use this coupon (minimum order '.self::money($minimum).').';
+            return 'Add '.Money::format($minimum - $subtotal).' more to use this coupon (minimum order '.Money::format($minimum).').';
         }
 
         return null;
@@ -120,14 +121,9 @@ class CouponService
     {
         return match ($coupon->type) {
             Coupon::TYPE_PERCENT => rtrim(rtrim(number_format((float) $coupon->value, 2), '0'), '.').'% off'
-                .($coupon->max_discount !== null ? ', up to '.self::money((float) $coupon->max_discount) : ''),
-            Coupon::TYPE_FIXED => self::money((float) $coupon->value).' off',
+                .($coupon->max_discount !== null ? ', up to '.Money::format((float) $coupon->max_discount) : ''),
+            Coupon::TYPE_FIXED => Money::format((float) $coupon->value).' off',
             default => 'Free shipping',
         };
-    }
-
-    public static function money(float $amount): string
-    {
-        return '₹'.number_format(round($amount, 2), fmod($amount, 1.0) == 0.0 ? 0 : 2);
     }
 }

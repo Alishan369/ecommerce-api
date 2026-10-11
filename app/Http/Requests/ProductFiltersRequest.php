@@ -10,11 +10,6 @@ class ProductFiltersRequest extends FormRequest
 {
     public const SORTS = ['featured', 'latest', 'newest', 'price_asc', 'price_desc', 'name_asc', 'discount', 'stock_asc'];
 
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     public function rules(): array
     {
         return [
@@ -24,12 +19,12 @@ class ProductFiltersRequest extends FormRequest
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'min_price' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'max_price' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'max_price' => ['sometimes', 'nullable', 'numeric', 'min:0', ...(is_numeric($this->input('min_price')) ? ['gte:min_price'] : [])],
             'in_stock' => ['sometimes', 'boolean'],
             'featured' => ['sometimes', 'boolean'],
             'bestseller' => ['sometimes', 'boolean'],
             'on_sale' => ['sometimes', 'boolean'],
-            'exclude' => ['sometimes', 'integer'],
+            'exclude' => ['sometimes', 'integer', 'min:1'],
             'gender' => ['sometimes', 'nullable', Rule::in(Product::GENDERS)],
             'family' => ['sometimes', 'nullable', Rule::in(Product::FAMILIES)],
             // Admin listing only.

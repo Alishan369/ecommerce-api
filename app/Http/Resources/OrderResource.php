@@ -13,7 +13,6 @@ class OrderResource extends JsonResource
             'id' => $this->id,
             'order_number' => $this->order_number,
             'email' => $this->email,
-            'customer_type' => $this->user_id ? 'registered' : 'guest',
             'status' => $this->status,
             'payment_method' => $this->payment_method,
             'payment_status' => $this->payment_status,

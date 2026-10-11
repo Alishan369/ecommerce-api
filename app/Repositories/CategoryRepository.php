@@ -4,42 +4,14 @@ namespace App\Repositories;
 
 use App\Models\Category;
 use App\Repositories\Interfaces\CategoryRepositoryInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use App\Support\StoredImage;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CategoryRepository implements CategoryRepositoryInterface
 {
-    private const DEFAULT_PER_PAGE = 20;
-
-    private const MAX_PER_PAGE = 100;
-
-    public function getAllCategories(array $filters = []): LengthAwarePaginator
-    {
-        $perPage = $this->resolvePerPage($filters['per_page'] ?? null);
-        $search = $filters['search'] ?? null;
-        $isActive = $filters['is_active'] ?? null;
-        $parentId = array_key_exists('parent_id', $filters) ? $filters['parent_id'] : false;
-
-        return Category::query()
-            ->withCount(['children', 'products'])
-            ->with('parent:id,name,slug')
-            ->when($search, function (Builder $q) use ($search) {
-                $escaped = addcslashes($search, '%_\\');
-                $q->where('name', 'like', '%'.$escaped.'%');
-            })
-            ->when(! is_null($isActive), fn (Builder $q) => $q->where('is_active', $isActive))
-            // false = filter not sent at all; null = explicitly "top-level only"
-            ->when($parentId !== false, fn (Builder $q) => $q->where('parent_id', $parentId))
-            ->orderBy('sort_order')->orderBy('name')
-            ->paginate($perPage)
-            ->withQueryString();
-    }
-
     /**
      * Full active tree for public nav / mega-menu — not paginated,
      * categories rarely number in the thousands.
@@ -70,86 +42,57 @@ class CategoryRepository implements CategoryRepositoryInterface
             ->firstOrFail();
     }
 
+    /** The parent was already checked by the request (exists, not deleted). */
     public function store(array $data): Category
     {
-        if (! empty($data['parent_id'])) {
-            $this->guardParentExists($data['parent_id']);
-        }
-
-        $image = $data['image'] ?? null;
-
-        return Category::create([
-            'name' => $data['name'],
-            'description' => $data['description'] ?? null,
-            'is_active' => $data['is_active'] ?? true,
-            'sort_order' => $data['sort_order'] ?? 0,
-            'slug' => $data['slug'] ?? null,
-            'parent_id' => $data['parent_id'] ?? null,
-            'image' => $image instanceof UploadedFile ? $image->store('categories', 'public') : null,
-        ]);
+        return Category::create(StoredImage::fromInput($data, 'categories'));
     }
 
     public function update(string $slug, array $data): Category
     {
         $category = $this->findBySlug($slug);
 
-        if (array_key_exists('parent_id', $data) && $data['parent_id']) {
-            $this->guardParentExists($data['parent_id']);
+        if (! empty($data['parent_id'])) {
             $this->guardNoCycle($category, (int) $data['parent_id']);
         }
 
-        $previousImage = $category->image;
-        $image = $data['image'] ?? null;
-
-        if ($image instanceof UploadedFile) {
-            $data['image'] = $image->store('categories', 'public');
-        } elseif (! empty($data['remove_image'])) {
-            $data['image'] = null;
-        } else {
-            unset($data['image']);
-        }
-        unset($data['remove_image']);
-
-        $category->update($data);
-
-        if (array_key_exists('image', $data) && $previousImage && $previousImage !== $category->image
-            && ! Str::startsWith($previousImage, ['http://', 'https://'])) {
-            Storage::disk('public')->delete($previousImage);
-        }
+        StoredImage::update($category, $data, 'categories');
 
         return $category->refresh();
     }
 
     /**
-     * @param  'reject'|'reparent'|'cascade'  $onChildren  what to do if this
-     *                                                     category has children: reject the delete, promote children to
-     *                                                     root (parent_id = null), or delete children too.
+     * @param  'reject'|'reparent'|'cascade'  $onChildren  what to do if this category has children:
+     *                                                     reject the delete, move them up a level, or delete them too.
      */
     public function delete(string $slug, string $onChildren = 'reject'): bool
     {
-        $category = $this->findBySlug($slug);
+        // All or nothing: a cascade that reaches a category with products must not leave half a branch deleted.
+        return DB::transaction(function () use ($slug, $onChildren) {
+            $category = $this->findBySlug($slug);
 
-        if ($category->products()->exists()) {
-            throw ValidationException::withMessages([
-                'category' => 'Cannot delete a category that still has products. Move or delete them first.',
-            ]);
-        }
+            if ($category->products()->exists()) {
+                throw ValidationException::withMessages([
+                    'category' => 'Cannot delete a category that still has products. Move or delete them first.',
+                ]);
+            }
 
-        $childCount = $category->children()->count();
+            $childCount = $category->children()->count();
 
-        if ($childCount > 0) {
-            match ($onChildren) {
-                'reparent' => $category->children()->update(['parent_id' => $category->parent_id]),
-                'cascade' => $category->children()->each(
-                    fn (Category $child) => $this->delete($child->slug, 'cascade')
-                ),
-                default => throw ValidationException::withMessages([
-                    'category' => "Cannot delete: {$childCount} subcategories still reference this category.",
-                ]),
-            };
-        }
+            if ($childCount > 0) {
+                match ($onChildren) {
+                    'reparent' => $category->children()->update(['parent_id' => $category->parent_id]),
+                    'cascade' => $category->children()->each(
+                        fn (Category $child) => $this->delete($child->slug, 'cascade')
+                    ),
+                    default => throw ValidationException::withMessages([
+                        'category' => "Cannot delete: {$childCount} subcategories still reference this category.",
+                    ]),
+                };
+            }
 
-        return (bool) $category->delete();
+            return (bool) $category->delete();
+        });
     }
 
     public function findBySlug(string $slug): Category
@@ -158,24 +101,6 @@ class CategoryRepository implements CategoryRepositoryInterface
             ->with('parent:id,name,slug')
             ->where('slug', $slug)
             ->firstOrFail();
-    }
-
-    private function resolvePerPage(?int $requested): int
-    {
-        if ($requested === null || $requested < 1) {
-            return self::DEFAULT_PER_PAGE;
-        }
-
-        return min($requested, self::MAX_PER_PAGE);
-    }
-
-    private function guardParentExists(int $parentId): void
-    {
-        if (! Category::whereKey($parentId)->exists()) {
-            throw ValidationException::withMessages([
-                'parent_id' => 'Selected parent category does not exist.',
-            ]);
-        }
     }
 
     /**

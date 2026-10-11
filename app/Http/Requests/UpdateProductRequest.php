@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\ValidatesFragranceDetails;
-use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -11,26 +10,14 @@ class UpdateProductRequest extends FormRequest
 {
     use ValidatesFragranceDetails;
 
-    public function authorize(): bool
-    {
-        return true;
-    }
-
-    protected function prepareForValidation(): void
-    {
-        $this->prepareFragranceDetails();
-    }
-
     public function rules(): array
     {
-        $routeProduct = $this->route('product');
-        $productId = $routeProduct instanceof Product ? $routeProduct->id : $routeProduct;
-
         return [
             ...$this->fragranceRules(),
-            'category_id' => ['sometimes', 'required', 'integer', 'exists:categories,id'],
+            'category_id' => ['sometimes', 'required', 'integer', Rule::exists('categories', 'id')->withoutTrashed()],
             'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'slug' => ['sometimes', 'required', 'string', 'max:255', 'alpha_dash', Rule::unique('products', 'slug')->ignore($productId)],
+            // The admin route binds {product:id}, so this is the model.
+            'slug' => ['sometimes', 'required', 'string', 'max:255', 'alpha_dash', Rule::unique('products', 'slug')->ignore($this->route('product'))],
             'sku' => ['prohibited'], // generated once on creation, never edited
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'price' => ['sometimes', 'required', 'numeric', 'min:0'],

@@ -2,26 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\CategoryFiltersRequest;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
 use App\Http\Resources\CategoryResource;
 use App\Repositories\Interfaces\CategoryRepositoryInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
     public function __construct(
         private readonly CategoryRepositoryInterface $categoryRepository
     ) {}
-
-    public function index(CategoryFiltersRequest $request): JsonResponse
-    {
-        $categories = $this->categoryRepository->getAllCategories($request->validated());
-
-        return CategoryResource::collection($categories)->response();
-    }
 
     /**
      * Nested active tree for public nav / mega-menu.
@@ -70,9 +63,9 @@ class CategoryController extends Controller
 
     public function destroy(Request $request, string $slug): JsonResponse
     {
-        $onChildren = $request->query('on_children', 'reject');
+        $data = $request->validate(['on_children' => ['sometimes', Rule::in(['reject', 'reparent', 'cascade'])]]);
 
-        $this->categoryRepository->delete($slug, $onChildren);
+        $this->categoryRepository->delete($slug, $data['on_children'] ?? 'reject');
 
         return response()->json([
             'status' => 'success',

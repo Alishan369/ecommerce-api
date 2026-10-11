@@ -2,20 +2,17 @@
 
 namespace App\Http\Requests;
 
+use App\Repositories\CartRepository;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AddToCartRequest extends FormRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     public function rules(): array
     {
+        // Whether the product exists and is on sale is checked by CartRepository (one query, clearer message).
         return [
-            'product_id' => ['required', 'integer', 'exists:products,id'],
-            'quantity' => ['required', 'integer', 'min:1', 'max:20'],
+            'product_id' => ['required', 'integer', 'min:1'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:'.CartRepository::MAX_QUANTITY_PER_ITEM],
         ];
     }
 
@@ -23,9 +20,8 @@ class AddToCartRequest extends FormRequest
     {
         return [
             'product_id.required' => 'Product is required.',
-            'product_id.exists' => 'This product does not exist.',
             'quantity.min' => 'Quantity must be at least 1.',
-            'quantity.max' => 'Maximum 20 quantity allowed per item.',
+            'quantity.max' => 'You can add up to '.CartRepository::MAX_QUANTITY_PER_ITEM.' of this item.',
         ];
     }
 }

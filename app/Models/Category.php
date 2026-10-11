@@ -2,18 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Models\Concerns\HasUniqueSlug;
+use App\Support\StoredImage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class Category extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasUniqueSlug, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -23,6 +22,12 @@ class Category extends Model
         'is_active',
         'sort_order',
         'parent_id',
+    ];
+
+    /** Same as the column defaults, so a category is complete straight after create(). */
+    protected $attributes = [
+        'is_active' => true,
+        'sort_order' => 0,
     ];
 
     protected $casts = [
@@ -51,39 +56,12 @@ class Category extends Model
 
         // Only clean up the file on permanent deletion — a soft-deleted
         // category can still be restored, and shouldn't lose its image.
-        static::forceDeleted(function (Category $category) {
-            if ($category->image) {
-                Storage::disk('public')->delete($category->image);
-            }
-        });
+        static::forceDeleted(fn (Category $category) => StoredImage::delete($category->image));
     }
 
-    public static function generateUniqueSlug(string $name, ?int $ignoreCategoryId = null): string
+    public function getImageUrlAttribute(): ?string
     {
-        $slug = Str::slug($name);
-        $original = $slug;
-        $count = 1;
-
-        while (static::withTrashed()
-            ->where('slug', $slug)
-            ->when($ignoreCategoryId, fn ($query) => $query->where('id', '!=', $ignoreCategoryId))
-            ->exists()) {
-            $slug = "{$original}-{$count}";
-            $count++;
-        }
-
-        return $slug;
-    }
-
-    protected function imageUrl(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => match (true) {
-                ! $this->image => null,
-                Str::startsWith($this->image, ['http://', 'https://']) => $this->image,
-                default => Storage::disk('public')->url($this->image),
-            },
-        );
+        return StoredImage::url($this->image);
     }
 
     public function parent(): BelongsTo

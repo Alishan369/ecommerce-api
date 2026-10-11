@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Order;
+use App\Support\Money;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -37,7 +38,7 @@ class OrderPlaced extends Mailable implements ShouldQueue
             markdown: 'emails.orders.placed',
             with: OrderEmail::data($order) + [
                 'paymentLine' => $order->payment_method === 'cod'
-                    ? 'Cash on Delivery — please keep '.OrderEmail::money((float) $order->total).' ready when it arrives.'
+                    ? 'Cash on Delivery — please keep '.Money::format((float) $order->total).' ready when it arrives.'
                     : 'Paid online — thank you, your payment was received.',
             ],
         );
