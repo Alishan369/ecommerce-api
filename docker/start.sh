@@ -9,6 +9,10 @@ cd /var/www/html
 
 ROLE="${CONTAINER_ROLE:-web}"
 fail() { echo "start.sh: $*" >&2; exit 1; }
+# Same spellings Laravel's env() reads as true, so the script and the app agree on DEMO_MODE/APP_DEBUG.
+is_true() { case "$1" in [Tt][Rr][Uu][Ee] | "("[Tt][Rr][Uu][Ee]")" | 1) return 0 ;; *) return 1 ;; esac; }
+DEMO=false
+if is_true "$DEMO_MODE"; then DEMO=true; fi
 
 case "$ROLE" in
     web | worker | scheduler) ;;
@@ -18,7 +22,7 @@ esac
 # Render provides the public URL.
 export APP_URL="${APP_URL:-$RENDER_EXTERNAL_URL}"
 
-if [ "$DEMO_MODE" = "true" ]; then
+if [ "$DEMO" = "true" ]; then
     # A per-boot APP_KEY is fine: the demo's data resets on every start anyway.
     if [ -z "$APP_KEY" ]; then
         APP_KEY="$(php artisan key:generate --show --no-ansi)"
@@ -28,11 +32,12 @@ else
     # A real store: refuse settings that would log everyone out on restart, leak stack traces,
     # keep orders in a file that disappears with the container, or point emails at the API.
     [ -n "$APP_KEY" ] || fail "APP_KEY is not set. Generate one with: php artisan key:generate --show"
-    case "$APP_DEBUG" in
-        [Tt][Rr][Uu][Ee] | 1 | "(true)") fail "APP_DEBUG=$APP_DEBUG shows stack traces to visitors. Set APP_DEBUG=false." ;;
-    esac
+    if is_true "$APP_DEBUG"; then
+        fail "APP_DEBUG=$APP_DEBUG shows stack traces to visitors. Set APP_DEBUG=false."
+    fi
     case "${DB_CONNECTION:-sqlite}" in
-        sqlite) fail "DB_CONNECTION is sqlite: the database file would be lost with the container. Use MySQL." ;;
+        sqlite) fail "DB_CONNECTION is sqlite: the database file would be lost with the container. Use MySQL," \
+            "or set DEMO_MODE=true for a throwaway demo store (DEMO_MODE is currently '${DEMO_MODE-<not set>}')." ;;
     esac
     [ -n "$FRONTEND_URL" ] || fail "FRONTEND_URL is not set (storefront URL for CORS and links in emails)."
 fi
@@ -42,7 +47,7 @@ php artisan optimize
 
 case "$ROLE" in
     web)
-        if [ "$DEMO_MODE" = "true" ]; then
+        if [ "$DEMO" = "true" ]; then
             # Admin, catalogue, demo coupons, customers and 30 days of orders.
             rm -f database/database.sqlite
             touch database/database.sqlite
