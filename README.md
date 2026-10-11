@@ -43,5 +43,6 @@ plus the `uploads` volume (product and category images).
 Demo logins: `admin@example.com` / `Admin@12345` and `customer@example.com` / `Customer@12345`.
 
 Free instances sleep after ~15 minutes without traffic; the first request then takes about a minute.
-Every start re-seeds the database, so the demo resets itself. Razorpay is off unless you add
+Every start re-seeds the database, so the demo resets itself. Deletes are blocked; image uploads work
+while `DEMO_ALLOW_UPLOADS=true` (set it to `false` to block them too). Razorpay is off unless you add
 `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (test keys) in the Render dashboard — Cash on Delivery works without them.

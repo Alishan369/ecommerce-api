@@ -19,6 +19,9 @@ services:
         value: Asia/Kolkata
       - key: DEMO_MODE
         value: "true"
+      # Demo visitors may upload images. Uploads vanish with the container, like the rest of the demo data.
+      - key: DEMO_ALLOW_UPLOADS
+        value: "true"
       - key: DB_CONNECTION
         value: sqlite
       - key: LOG_CHANNEL

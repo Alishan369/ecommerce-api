@@ -158,7 +158,7 @@ Route::prefix('v1')->name('v1.')->group(function () {
 
     /* ---------------------------------------------------------------
      | Admin — authentication is NOT authorization.
-     | In the public demo: no deletes and no file uploads (demo.guard).
+     | In the public demo: no deletes, and no file uploads unless DEMO_ALLOW_UPLOADS=true (demo.guard).
      * ------------------------------------------------------------- */
     Route::prefix('admin')
         ->name('admin.')

@@ -19,8 +19,14 @@ case "$ROLE" in
     *) fail "unknown CONTAINER_ROLE '$ROLE' (expected web, worker or scheduler)" ;;
 esac
 
-# Render provides the public URL.
+# Render provides the public URL. Image links are built from APP_URL, so a localhost value
+# (copied from a local .env) would point every image at the visitor's own computer.
 export APP_URL="${APP_URL:-$RENDER_EXTERNAL_URL}"
+if [ -n "$RENDER_EXTERNAL_URL" ]; then
+    case "$APP_URL" in
+        *://localhost* | *://127.0.0.1*) export APP_URL="$RENDER_EXTERNAL_URL" ;;
+    esac
+fi
 
 if [ "$DEMO" = "true" ]; then
     # The demo always uses the container's own SQLite file, whatever DB_* settings the host passes in,
@@ -43,6 +49,13 @@ else
         sqlite) fail "DB_CONNECTION is sqlite: the database file would be lost with the container. Use MySQL," \
             "or set DEMO_MODE=true for a throwaway demo store (DEMO_MODE is currently '${DEMO_MODE-<not set>}')." ;;
     esac
+    # Inside a container 127.0.0.1 is the container itself, and it has no MySQL server.
+    if [ -z "$DB_URL" ]; then
+        case "${DB_HOST:-127.0.0.1}" in
+            127.0.0.1 | localhost | ::1) fail "DB_HOST is '${DB_HOST:-<not set>}', but this container has no MySQL server. Point DB_HOST" \
+                "at your database, or set DEMO_MODE=true for a throwaway demo store (DEMO_MODE is currently '${DEMO_MODE-<not set>}')." ;;
+        esac
+    fi
     [ -n "$FRONTEND_URL" ] || fail "FRONTEND_URL is not set (storefront URL for CORS and links in emails)."
 fi
 

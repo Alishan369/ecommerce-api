@@ -36,6 +36,9 @@ return [
         ],
         // Daily reset time in the app timezone (APP_TIMEZONE).
         'reset_at' => env('DEMO_RESET_AT', '03:30'),
+        // Lets demo visitors upload images and videos. Off by default: the admin login is public,
+        // so anyone could put any picture on the storefront until the next reset.
+        'allow_uploads' => (bool) env('DEMO_ALLOW_UPLOADS', false),
     ],
 
     // Where links in emails (order pages, password reset) point — the storefront, not the API.

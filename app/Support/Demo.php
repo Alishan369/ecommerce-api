@@ -10,6 +10,11 @@ final class Demo
         return (bool) config('shop.demo.enabled');
     }
 
+    public static function uploadsAllowed(): bool
+    {
+        return (bool) config('shop.demo.allow_uploads');
+    }
+
     /**
      * The shared logins shown on the sign-in page in demo mode.
      *

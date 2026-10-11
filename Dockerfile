@@ -7,6 +7,7 @@ FROM php:8.2-apache
 # OPcache (the code is baked into the image, so no timestamp checks), the MySQL driver, pcntl so
 # queue:work can stop a stuck job at its timeout, GD (JPEG/PNG/WebP) + EXIF so uploaded images are
 # compressed to WebP (App\Support\ImageOptimizer), zip for Excel report export (App\Reports\XlsxWriter),
+# uploads up to the admin's largest file (20 MB banner video; PHP's default is 2 MB),
 # and no PHP or Apache version in response headers.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends unzip libjpeg62-turbo-dev libpng-dev libwebp-dev libzip-dev \
@@ -18,7 +19,8 @@ RUN apt-get update \
     && a2enconf zz-hardening \
     && mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
     && printf '%s\n' expose_php=Off opcache.enable=1 opcache.memory_consumption=128 \
-        opcache.max_accelerated_files=20000 opcache.validate_timestamps=0 > "$PHP_INI_DIR/conf.d/zz-app.ini"
+        opcache.max_accelerated_files=20000 opcache.validate_timestamps=0 \
+        upload_max_filesize=20M post_max_size=40M > "$PHP_INI_DIR/conf.d/zz-app.ini"
 
 # Serve /public and listen on $PORT (Apache expands ${...} from the environment at startup).
 # Logs go to the container's output; a log file inside the container would vanish with it.

@@ -32,12 +32,12 @@ Artisan::command('demo:reset {--force : Skip the confirmation (used by the sched
         return 0;
     }
 
-    $this->call('migrate:fresh', ['--seed' => true, '--force' => true]);
-
-    // Uploads are blocked in the demo, but clear the folders in case any slipped in before.
-    foreach (['products', 'categories'] as $folder) {
+    // Clear uploaded files first: the seeders below copy fresh starter images into these folders.
+    foreach (['products', 'categories', 'banners', 'site-media', 'scent-families'] as $folder) {
         Storage::disk('public')->deleteDirectory($folder);
     }
+
+    $this->call('migrate:fresh', ['--seed' => true, '--force' => true]);
     Cache::forget('seo:sitemap');
 
     $this->info('Demo store reset to fresh demo data.');
