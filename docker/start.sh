@@ -23,6 +23,10 @@ esac
 export APP_URL="${APP_URL:-$RENDER_EXTERNAL_URL}"
 
 if [ "$DEMO" = "true" ]; then
+    # The demo always uses the container's own SQLite file, whatever DB_* settings the host passes in,
+    # so stray MySQL settings can't break it and demo data is never seeded into a real store.
+    unset DB_URL
+    export DB_CONNECTION=sqlite DB_DATABASE=/var/www/html/database/database.sqlite
     # A per-boot APP_KEY is fine: the demo's data resets on every start anyway.
     if [ -z "$APP_KEY" ]; then
         APP_KEY="$(php artisan key:generate --show --no-ansi)"
