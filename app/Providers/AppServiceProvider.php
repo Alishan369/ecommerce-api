@@ -14,7 +14,6 @@ use App\Repositories\Interfaces\ProductRepositoryInterface;
 use App\Repositories\OrderRepository;
 use App\Repositories\ProductRepository;
 use App\Services\Payments\RazorpayGateway;
-use App\Support\Demo;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Middleware\TrustProxies;
@@ -78,9 +77,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('auth', fn (Request $r) => array_filter([
             Limit::perMinute(20)->by($r->ip()),
             Limit::perMinute(5)->by($email($r).'|'.$r->ip()),
-            // Caps guesses at one account even when they come from many IPs. The public demo's
-            // shared logins are exempt, or its visitors would lock each other out.
-            $email($r) !== '' && ! Demo::isDemoAccount($email($r)) ? Limit::perHour(30)->by($email($r)) : null,
+            // Caps guesses at one account even when they come from many IPs.
+            $email($r) !== '' ? Limit::perHour(30)->by($email($r)) : null,
         ]));
 
         RateLimiter::for('order-lookup', fn (Request $r) => [

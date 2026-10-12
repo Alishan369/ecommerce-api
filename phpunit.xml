@@ -32,11 +32,10 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
-        <!-- Hermetic: never use the developer's real Razorpay keys, demo mode or proxy settings. -->
+        <!-- Hermetic: never use the developer's real Razorpay keys or proxy settings. -->
         <env name="RAZORPAY_KEY_ID" value=""/>
         <env name="RAZORPAY_KEY_SECRET" value=""/>
         <env name="RAZORPAY_WEBHOOK_SECRET" value=""/>
-        <env name="DEMO_MODE" value="false"/>
         <env name="TRUSTED_PROXIES" value=""/>
         <env name="FORCE_HTTPS" value="false"/>
         <env name="FRONTEND_URL" value="https://shop.test"/>

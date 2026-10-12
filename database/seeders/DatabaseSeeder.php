@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Support\Demo;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -10,22 +9,11 @@ class DatabaseSeeder extends Seeder
     /**
      * `php artisan migrate:fresh --seed`
      *
-     * A real production store gets the admin account, the catalogue and starter
-     * storefront media (banners, site photos/videos, category photos — all then
-     * managed from the admin panel). Local machines and the public demo
-     * (DEMO_MODE=true) also get demo coupons, customers and 30 days of order
-     * history (CouponSeeder, DemoStoreSeeder).
+     * Creates only the admin account. Collections, products, banners, photos
+     * and coupons are all added from the admin panel.
      */
     public function run(): void
     {
-        $this->call([
-            AdminUserSeeder::class,
-            CatalogSeeder::class,
-            StorefrontMediaSeeder::class,
-        ]);
-
-        if (! app()->isProduction() || Demo::enabled()) {
-            $this->call([CouponSeeder::class, DemoStoreSeeder::class]);
-        }
+        $this->call(AdminUserSeeder::class);
     }
 }

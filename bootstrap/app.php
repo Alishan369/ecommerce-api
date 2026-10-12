@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Middleware\DemoGuard;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -36,9 +35,6 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->append(SecurityHeaders::class);
-
-        // Public demo: blocks destructive actions (see config/shop.php → demo).
-        $middleware->alias(['demo.guard' => DemoGuard::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // The API never redirects or renders HTML — unauthenticated requests get a 401 JSON body.

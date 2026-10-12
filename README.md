@@ -27,22 +27,29 @@ To deploy a new version: `git pull`, then the same `up -d --build`. Migrations r
 The image runs as one of three roles (`CONTAINER_ROLE`, see `docker/start.sh`): `web` (default), `worker`, `scheduler`.
 On another platform, run the same image three times with those roles, a managed MySQL and a persistent disk at
 `storage/app/public`. If you run several `web` containers, set `RUN_MIGRATIONS=false` on all but one.
-Without `DEMO_MODE=true` the container refuses to start without `APP_KEY`, `FRONTEND_URL` and a MySQL connection, or with `APP_DEBUG=true`.
+The container refuses to start without `APP_KEY` and `FRONTEND_URL`, or with `APP_DEBUG=true`. Without `DB_CONNECTION=mysql`
+it keeps the database in `storage/app/database.sqlite` (the Render setup below); mount a persistent disk at `storage/app`.
+
+Seeding creates only the admin account (`ADMIN_EMAIL` / `ADMIN_PASSWORD`). Collections, products, banners, photos
+and coupons are added in the admin panel.
 
 Backups: `docker compose -f docker-compose.prod.yml --env-file .env.production exec mysql sh -c 'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" --single-transaction "$MYSQL_DATABASE"' > backup.sql`,
 plus the `uploads` volume (product and category images).
 
-## Free live demo (Render)
+## Render
 
-`render.yaml` + `Dockerfile` run the API on Render's free plan with SQLite and `DEMO_MODE=true`.
+`render.yaml` + `Dockerfile` run the API as one container on a Starter instance with a 1 GB persistent disk at
+`storage/app`. The SQLite database and uploaded images live on the disk, so they survive restarts and redeploys,
+and Render snapshots the disk daily. The scheduler runs inside the same container (`RUN_SCHEDULER=true`) and
+emails are sent during the request (`QUEUE_CONNECTION=sync`).
 
-1. [dashboard.render.com](https://dashboard.render.com) → **New → Blueprint** → pick this repo → **Apply**.
+1. [dashboard.render.com](https://dashboard.render.com) → **New → Blueprint** → pick this repo. Render asks for
+   `APP_KEY` (`php artisan key:generate --show`), `FRONTEND_URL` (your Vercel URL), `ADMIN_EMAIL` and
+   `ADMIN_PASSWORD` (12+ characters) → **Apply**.
 2. Wait for the first deploy, then open `https://<service>.onrender.com/up` — it should say the app is up.
 3. In the frontend's Vercel project set `VITE_API_BASE_URL=https://<service>.onrender.com/api/v1` and redeploy.
+4. Sign in to the storefront with the admin account and add your collections, products and banners.
 
-Demo logins: `admin@example.com` / `Admin@12345` and `customer@example.com` / `Customer@12345`.
-
-Free instances sleep after ~15 minutes without traffic; the first request then takes about a minute.
-Every start re-seeds the database, so the demo resets itself. Deletes are blocked; image uploads work
-while `DEMO_ALLOW_UPLOADS=true` (set it to `false` to block them too). Razorpay is off unless you add
-`RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` (test keys) in the Render dashboard — Cash on Delivery works without them.
+The free plan has no disks: without one the container warns at startup and everything is lost on every restart.
+Razorpay is off unless you add `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` in the Render dashboard — Cash on
+Delivery works without them. For order emails set the `MAIL_*` values (see `.env.production.example`).

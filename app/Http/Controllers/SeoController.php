@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Product;
-use App\Support\Demo;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
 
@@ -23,21 +22,18 @@ class SeoController extends Controller
     {
         $site = config('shop.frontend_url');
 
-        // A public demo shouldn't compete with (or be mistaken for) a real store in search results.
-        $body = Demo::enabled()
-            ? "User-agent: *\nDisallow: /\n"
-            : implode("\n", [
-                'User-agent: *',
-                'Disallow: /admin',
-                'Disallow: /account',
-                'Disallow: /cart',
-                'Disallow: /checkout',
-                'Disallow: /order/',
-                'Disallow: /api/',
-                '',
-                "Sitemap: {$site}/sitemap.xml",
-                '',
-            ]);
+        $body = implode("\n", [
+            'User-agent: *',
+            'Disallow: /admin',
+            'Disallow: /account',
+            'Disallow: /cart',
+            'Disallow: /checkout',
+            'Disallow: /order/',
+            'Disallow: /api/',
+            '',
+            "Sitemap: {$site}/sitemap.xml",
+            '',
+        ]);
 
         return response($body, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
     }

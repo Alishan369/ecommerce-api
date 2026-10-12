@@ -1,7 +1,7 @@
 # Laravel API image. One image runs the web server, the queue worker or the scheduler
 # (CONTAINER_ROLE, see docker/start.sh):
 #   - production: docker-compose.prod.yml (MySQL, persistent uploads, worker and scheduler)
-#   - free public demo: render.yaml (DEMO_MODE=true, SQLite re-seeded on every start)
+#   - Render: render.yaml (one container, SQLite and uploads on a persistent disk)
 FROM php:8.2-apache
 
 # OPcache (the code is baked into the image, so no timestamp checks), the MySQL driver, pcntl so

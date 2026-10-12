@@ -137,28 +137,6 @@ class MediaAndReportsTest extends TestCase
         $this->get('/api/v1/admin/reports/orders/download?format=pdf', ['Accept' => 'application/json'])->assertUnprocessable();
     }
 
-    public function test_storefront_media_seeder_fills_gaps_only(): void
-    {
-        Storage::fake('public');
-        \App\Models\Category::factory()->create(['name' => 'Women', 'parent_id' => null, 'image' => null]);
-        $custom = \App\Models\Category::factory()->create(['name' => 'Men', 'parent_id' => null, 'image' => 'https://cdn.example.com/men.jpg']);
-
-        $this->seed(\Database\Seeders\StorefrontMediaSeeder::class);
-
-        $this->assertGreaterThan(0, \App\Models\Banner::where('placement', 'hero')->count());
-        $this->assertSame(count(SiteMedia::SLOTS), SiteMedia::count());
-        $this->assertNotNull(\App\Models\Category::where('name', 'Women')->value('image'));
-        $this->assertSame('https://cdn.example.com/men.jpg', $custom->fresh()->image); // admin's photo untouched
-        $video = SiteMedia::where('slot', 'gift.banner')->value('video');
-        Storage::disk('public')->assertExists($video);
-        $this->assertSame(0, \App\Models\ScentFamily::whereNull('image')->count()); // every family gets a photo
-
-        // Re-running adds nothing.
-        $counts = [\App\Models\Banner::count(), SiteMedia::count()];
-        $this->seed(\Database\Seeders\StorefrontMediaSeeder::class);
-        $this->assertSame($counts, [\App\Models\Banner::count(), SiteMedia::count()]);
-    }
-
     public function test_csv_neutralises_formula_cells_and_validates_input(): void
     {
         $this->seedOrders();

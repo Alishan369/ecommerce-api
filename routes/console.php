@@ -2,11 +2,8 @@
 
 use App\Models\Cart;
 use App\Services\Payments\PaymentService;
-use App\Support\Demo;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
-use Illuminate\Support\Facades\Storage;
 
 Artisan::command('orders:expire-unpaid', function (PaymentService $payments) {
     $count = $payments->expireUnpaid();
@@ -20,31 +17,6 @@ Artisan::command('carts:prune {--guest-days=14} {--empty-days=30}', function () 
     $this->info("Pruned {$guest} stale guest cart(s) and {$empty} empty cart(s).");
 })->purpose('Delete abandoned guest carts and long-empty carts');
 
-Artisan::command('demo:reset {--force : Skip the confirmation (used by the scheduler)}', function () {
-    // Hard safety stop: this wipes the database, so it only ever runs in the public demo.
-    if (! Demo::enabled()) {
-        $this->error('DEMO_MODE is off — refusing to reset. This command would delete a real store\'s data.');
-
-        return 1;
-    }
-
-    if (! $this->option('force') && ! $this->confirm('Delete ALL data and rebuild the demo store?')) {
-        return 0;
-    }
-
-    // Clear uploaded files first: the seeders below copy fresh starter images into these folders.
-    foreach (['products', 'categories', 'banners', 'site-media', 'scent-families'] as $folder) {
-        Storage::disk('public')->deleteDirectory($folder);
-    }
-
-    $this->call('migrate:fresh', ['--seed' => true, '--force' => true]);
-    Cache::forget('seo:sitemap');
-
-    $this->info('Demo store reset to fresh demo data.');
-
-    return 0;
-})->purpose('Public demo only: wipe the database and re-seed the demo store');
-
 /*
 | The scheduler needs one process running it: `php artisan schedule:work`
 | (the Docker "scheduler" service), or a cron entry calling `schedule:run` every minute.
@@ -53,8 +25,3 @@ Schedule::command('orders:expire-unpaid')->everyFiveMinutes()->withoutOverlappin
 Schedule::command('carts:prune')->dailyAt('03:00')->withoutOverlapping();
 Schedule::command('sanctum:prune-expired --hours=48')->dailyAt('03:10');
 Schedule::command('queue:prune-failed --hours=168')->weekly();
-
-Schedule::command('demo:reset --force')
-    ->dailyAt(config('shop.demo.reset_at', '03:30'))
-    ->when(fn () => Demo::enabled())
-    ->withoutOverlapping();

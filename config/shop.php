@@ -19,27 +19,8 @@ return [
         'password' => env('ADMIN_PASSWORD', 'Admin@12345'),
     ],
 
-    // The password above ships in the README, so a real (non-demo) production store refuses it.
+    // The password above ships in the README, so a production store refuses it.
     'default_admin_password' => 'Admin@12345',
-
-    /*
-    | Public demo mode. Shows the demo logins on the sign-in page and a demo
-    | banner, blocks destructive actions (App\Http\Middleware\DemoGuard), seeds
-    | demo customers/orders/coupons even in production, and lets the scheduler
-    | reset the whole database every night (demo:reset). Never enable on a real store.
-    */
-    'demo' => [
-        'enabled' => (bool) env('DEMO_MODE', false),
-        'customer' => [
-            'email' => env('DEMO_CUSTOMER_EMAIL', 'customer@example.com'),
-            'password' => env('DEMO_CUSTOMER_PASSWORD', 'Customer@12345'),
-        ],
-        // Daily reset time in the app timezone (APP_TIMEZONE).
-        'reset_at' => env('DEMO_RESET_AT', '03:30'),
-        // Lets demo visitors upload images and videos. Off by default: the admin login is public,
-        // so anyone could put any picture on the storefront until the next reset.
-        'allow_uploads' => (bool) env('DEMO_ALLOW_UPLOADS', false),
-    ],
 
     // Where links in emails (order pages, password reset) point — the storefront, not the API.
     'frontend_url' => rtrim((string) env('FRONTEND_URL', env('APP_URL', 'http://localhost:5173')), '/'),

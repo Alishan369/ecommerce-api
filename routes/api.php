@@ -38,19 +38,17 @@ Route::prefix('v1')->name('v1.')->group(function () {
             Route::post('login', [AuthController::class, 'login'])->name('login');
         });
 
-        // Forgot / reset password. Shared demo accounts can't be reset in the public demo.
-        Route::middleware(['throttle:password-reset', 'demo.guard:accounts'])->group(function () {
+        // Forgot / reset password.
+        Route::middleware('throttle:password-reset')->group(function () {
             Route::post('forgot-password', [PasswordResetController::class, 'sendLink'])->name('password.email');
             Route::post('reset-password', [PasswordResetController::class, 'reset'])->name('password.reset');
         });
 
         Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function () {
             Route::get('user', [AuthController::class, 'user'])->name('user');
-            Route::put('user', [AuthController::class, 'updateProfile'])
-                ->middleware('demo.guard:accounts')
-                ->name('user.update');
+            Route::put('user', [AuthController::class, 'updateProfile'])->name('user.update');
             Route::put('password', [AuthController::class, 'updatePassword'])
-                ->middleware(['throttle:auth', 'demo.guard:accounts'])
+                ->middleware('throttle:auth')
                 ->name('password.update');
             Route::post('logout', [AuthController::class, 'logout'])->name('logout');
         });
@@ -61,7 +59,7 @@ Route::prefix('v1')->name('v1.')->group(function () {
      * ------------------------------------------------------------- */
     Route::middleware('throttle:public')->group(function () {
 
-        // Storefront settings (shipping, demo mode) the SPA loads at startup.
+        // Storefront settings (shipping) the SPA loads at startup.
         Route::get('store', StoreController::class)->name('store');
 
         Route::get('categories/tree', [CategoryController::class, 'tree'])->name('categories.tree');
@@ -119,8 +117,7 @@ Route::prefix('v1')->name('v1.')->group(function () {
     /* ---------------------------------------------------------------
      | Razorpay webhook — authenticated by its HMAC signature, not a token.
      * ------------------------------------------------------------- */
-    Route::post('payments/razorpay/webhook', [PaymentController::class, 'webhook'])
-        ->name('payments.razorpay.webhook');
+    Route::post('payments/razorpay/webhook', [PaymentController::class, 'webhook'])->name('payments.razorpay.webhook');
 
     /* ---------------------------------------------------------------
      | Signed-in customers: checkout, orders, payments, address book.
@@ -140,8 +137,7 @@ Route::prefix('v1')->name('v1.')->group(function () {
             Route::post('orders/{orderNumber}/cancel', [OrderController::class, 'cancel'])
                 ->where('orderNumber', Order::NUMBER_PATTERN)
                 ->name('orders.cancel');
-            Route::post('payments/razorpay/verify', [PaymentController::class, 'verify'])
-                ->name('payments.razorpay.verify');
+            Route::post('payments/razorpay/verify', [PaymentController::class, 'verify'])->name('payments.razorpay.verify');
         });
 
         Route::middleware('throttle:authenticated')->group(function () {
@@ -158,7 +154,6 @@ Route::prefix('v1')->name('v1.')->group(function () {
 
     /* ---------------------------------------------------------------
      | Admin — authentication is NOT authorization.
-     | In the public demo: no deletes, and no file uploads unless DEMO_ALLOW_UPLOADS=true (demo.guard).
      * ------------------------------------------------------------- */
     Route::prefix('admin')
         ->name('admin.')
@@ -168,27 +163,15 @@ Route::prefix('v1')->name('v1.')->group(function () {
             Route::get('dashboard', AdminDashboardController::class)->name('dashboard');
 
             Route::get('categories/tree', [CategoryController::class, 'adminTree'])->name('categories.tree');
-            Route::post('categories', [CategoryController::class, 'store'])
-                ->middleware('demo.guard:uploads')
-                ->name('categories.store');
-            Route::match(['put', 'patch'], 'categories/{category:slug}', [CategoryController::class, 'update'])
-                ->middleware('demo.guard:uploads')
-                ->name('categories.update');
-            Route::delete('categories/{category:slug}', [CategoryController::class, 'destroy'])
-                ->middleware('demo.guard')
-                ->name('categories.destroy');
+            Route::post('categories', [CategoryController::class, 'store'])->name('categories.store');
+            Route::match(['put', 'patch'], 'categories/{category:slug}', [CategoryController::class, 'update'])->name('categories.update');
+            Route::delete('categories/{category:slug}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
             // Admin binds products by id, not slug.
             Route::get('products', [ProductController::class, 'adminIndex'])->name('products.index');
-            Route::post('products', [ProductController::class, 'store'])
-                ->middleware('demo.guard:uploads')
-                ->name('products.store');
-            Route::match(['put', 'patch'], 'products/{product:id}', [ProductController::class, 'update'])
-                ->middleware('demo.guard:uploads')
-                ->name('products.update');
-            Route::delete('products/{product:id}', [ProductController::class, 'destroy'])
-                ->middleware('demo.guard')
-                ->name('products.destroy');
+            Route::post('products', [ProductController::class, 'store'])->name('products.store');
+            Route::match(['put', 'patch'], 'products/{product:id}', [ProductController::class, 'update'])->name('products.update');
+            Route::delete('products/{product:id}', [ProductController::class, 'destroy'])->name('products.destroy');
 
             Route::get('orders', [OrderController::class, 'adminIndex'])->name('orders.index');
             Route::get('orders/{order}', [OrderController::class, 'adminShow'])
@@ -207,30 +190,23 @@ Route::prefix('v1')->name('v1.')->group(function () {
                 ->name('coupons.update');
             Route::delete('coupons/{coupon}', [AdminCouponController::class, 'destroy'])
                 ->whereNumber('coupon')
-                ->middleware('demo.guard')
                 ->name('coupons.destroy');
 
             Route::get('banners', [AdminBannerController::class, 'index'])->name('banners.index');
-            Route::post('banners', [AdminBannerController::class, 'store'])
-                ->middleware('demo.guard:uploads')
-                ->name('banners.store');
+            Route::post('banners', [AdminBannerController::class, 'store'])->name('banners.store');
             Route::match(['put', 'patch'], 'banners/{banner}', [AdminBannerController::class, 'update'])
                 ->whereNumber('banner')
-                ->middleware('demo.guard:uploads')
                 ->name('banners.update');
             Route::delete('banners/{banner}', [AdminBannerController::class, 'destroy'])
                 ->whereNumber('banner')
-                ->middleware('demo.guard')
                 ->name('banners.destroy');
 
             Route::get('media', [AdminSiteMediaController::class, 'index'])->name('media.index');
             Route::post('media/{slot}', [AdminSiteMediaController::class, 'update'])
                 ->where('slot', '[a-z0-9.-]+')
-                ->middleware('demo.guard:uploads')
                 ->name('media.update');
             Route::delete('media/{slot}', [AdminSiteMediaController::class, 'destroy'])
                 ->where('slot', '[a-z0-9.-]+')
-                ->middleware('demo.guard')
                 ->name('media.destroy');
 
             Route::get('scent-families', [AdminScentFamilyController::class, 'index'])->name('scent-families.index');
@@ -238,7 +214,6 @@ Route::prefix('v1')->name('v1.')->group(function () {
             Route::post('scent-families/reorder', [AdminScentFamilyController::class, 'reorder'])->name('scent-families.reorder');
             Route::match(['post', 'patch'], 'scent-families/{key}', [AdminScentFamilyController::class, 'update'])
                 ->where('key', '[a-z]+')
-                ->middleware('demo.guard:uploads')
                 ->name('scent-families.update');
 
             // Reports: preview (JSON) and full CSV download for a date range.

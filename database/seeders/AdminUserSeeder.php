@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use App\Support\Demo;
 use Illuminate\Database\Seeder;
 use RuntimeException;
 
@@ -22,9 +21,8 @@ class AdminUserSeeder extends Seeder
             throw new RuntimeException('Set ADMIN_EMAIL to a real email address in .env before seeding.');
         }
 
-        // The default password is printed in the README. A real (non-demo) production
-        // store must set its own — in the public demo it's shown on the sign-in page anyway.
-        if (app()->isProduction() && ! Demo::enabled()) {
+        // The default password is printed in the README, so production must set its own.
+        if (app()->isProduction()) {
             if ($admin['password'] === config('shop.default_admin_password') || strlen((string) $admin['password']) < 12) {
                 throw new RuntimeException('Set a strong ADMIN_PASSWORD (12+ characters, not the README default) in .env before seeding production.');
             }
