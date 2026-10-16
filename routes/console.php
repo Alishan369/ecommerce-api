@@ -19,7 +19,7 @@ Artisan::command('carts:prune {--guest-days=14} {--empty-days=30}', function () 
 
 /*
 | The scheduler needs one process running it: `php artisan schedule:work`
-| (the Docker "scheduler" service), or a cron entry calling `schedule:run` every minute.
+| (under systemd or Supervisor), or a cron entry calling `schedule:run` every minute.
 */
 Schedule::command('orders:expire-unpaid')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('carts:prune')->dailyAt('03:00')->withoutOverlapping();

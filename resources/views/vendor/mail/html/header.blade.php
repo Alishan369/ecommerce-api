@@ -3,7 +3,7 @@
 <td class="header">
 <a href="{{ config('shop.frontend_url') }}" style="display: inline-block; text-decoration: none;">
 {{ config('app.name') }}
-<span class="tagline">FINE FRAGRANCES</span>
+<span class="tagline">LEAVE A LASTING IMPACT</span>
 </a>
 </td>
 </tr>

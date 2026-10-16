@@ -110,9 +110,9 @@ return [
     |
     */
 
-    // Branded email theme: resources/views/vendor/mail/html/themes/saanjh.css
+    // Branded email theme: resources/views/vendor/mail/html/themes/impact.css
     'markdown' => [
-        'theme' => env('MAIL_MARKDOWN_THEME', 'saanjh'),
+        'theme' => env('MAIL_MARKDOWN_THEME', 'impact'),
         'paths' => [resource_path('views/vendor/mail')],
     ],
 

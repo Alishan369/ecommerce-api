@@ -9,11 +9,11 @@ class DatabaseSeeder extends Seeder
     /**
      * `php artisan migrate:fresh --seed`
      *
-     * Creates only the admin account. Collections, products, banners, photos
-     * and coupons are all added from the admin panel.
+     * Creates the admin account, then loads the catalogue saved by
+     * `php artisan catalog:export` (if any) into an empty store.
      */
     public function run(): void
     {
-        $this->call(AdminUserSeeder::class);
+        $this->call([AdminUserSeeder::class, CatalogSeeder::class]);
     }
 }

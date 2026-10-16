@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
- * GET /api/v1/health — for uptime monitors and the Docker healthcheck.
+ * GET /api/v1/health — for uptime monitors.
  * Booleans only (no versions, paths or error text), 503 if anything is down.
  */
 class HealthController extends Controller

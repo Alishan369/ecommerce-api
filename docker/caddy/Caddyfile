@@ -1,6 +1,0 @@
-# HTTPS for the API (docker-compose.prod.yml). Caddy fetches and renews the certificate itself:
-# point API_DOMAIN's DNS at this server and keep ports 80 and 443 open.
-{$API_DOMAIN} {
-	encode zstd gzip
-	reverse_proxy app:10000
-}

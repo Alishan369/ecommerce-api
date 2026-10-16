@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('v1.')->group(function () {
 
-    // Uptime monitors / Docker healthcheck: database, cache and storage.
+    // Uptime monitors: database, cache and storage.
     Route::get('health', HealthController::class)->middleware('throttle:public')->name('health');
 
     /* ---------------------------------------------------------------
