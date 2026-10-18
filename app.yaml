@@ -1,0 +1,3 @@
+volumes:
+  - name: image-storage
+    mount: /data/images
