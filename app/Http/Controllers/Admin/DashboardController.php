@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\User;
+use App\Repositories\Interfaces\UserRepositoryInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
@@ -25,6 +25,8 @@ class DashboardController extends Controller
 
     private const CHART_DAYS = 14;
 
+    public function __construct(private readonly UserRepositoryInterface $users) {}
+
     public function __invoke(): JsonResponse
     {
         $periodStart = now()->subDays(self::PERIOD_DAYS - 1)->startOfDay();
@@ -41,8 +43,8 @@ class DashboardController extends Controller
                 'orders' => $current['orders'],
                 'orders_previous' => $previous['orders'],
                 'average_order_value' => $current['orders'] ? round($current['revenue'] / $current['orders'], 2) : 0,
-                'customers' => User::query()->where('role', 'customer')->count(),
-                'new_customers' => User::query()->where('role', 'customer')->where('created_at', '>=', $periodStart)->count(),
+                'customers' => $this->users->countCustomers(),
+                'new_customers' => $this->users->countCustomers($periodStart),
                 'to_fulfil' => $this->toFulfil(),
             ],
             'sales_by_day' => $this->salesByDay(),

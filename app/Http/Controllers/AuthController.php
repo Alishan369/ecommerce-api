@@ -6,6 +6,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Repositories\Interfaces\UserRepositoryInterface;
 use App\Support\India;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,9 +26,11 @@ class AuthController extends Controller
      */
     private const DUMMY_HASH = '$2y$12$WQwvxshsWMDnJdAQo54/dOo4CZEdZFhvr5ChLbThWzrLzsedj6/8C';
 
+    public function __construct(private readonly UserRepositoryInterface $users) {}
+
     public function register(RegisterRequest $request): JsonResponse
     {
-        $user = User::create([
+        $user = $this->users->create([
             ...$request->safe()->only(['name', 'email', 'phone', 'password']),
             'role' => 'customer', // never taken from input
         ]);
@@ -37,7 +40,7 @@ class AuthController extends Controller
 
     public function login(LoginRequest $request): JsonResponse
     {
-        $user = User::query()->where('email', $request->validated('email'))->first();
+        $user = $this->users->findByEmail($request->validated('email'));
         $valid = Hash::check($request->validated('password'), $user?->password ?? self::DUMMY_HASH);
 
         // Same message for unknown email and wrong password — no account enumeration.

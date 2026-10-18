@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CouponRequest;
 use App\Http\Resources\AdminCouponResource;
 use App\Models\Coupon;
-use Illuminate\Database\Eloquent\Builder;
+use App\Repositories\Interfaces\CouponRepositoryInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 /** Admin coupon management with usage stats (uses, discount given, revenue) from non-cancelled orders. */
 class CouponController extends Controller
 {
+    public function __construct(private readonly CouponRepositoryInterface $coupons) {}
+
     public function index(Request $request)
     {
         $filters = $request->validate([
@@ -21,38 +23,26 @@ class CouponController extends Controller
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
-        $search = $filters['search'] ?? null;
 
-        $coupons = $this->withStats(Coupon::query())
-            ->when($search, fn (Builder $q) => $q->where(fn (Builder $w) => $w
-                ->where('code', 'like', '%'.addcslashes(strtoupper($search), '%_\\').'%')
-                ->orWhere('description', 'like', '%'.addcslashes($search, '%_\\').'%')))
-            ->latest()
-            ->orderByDesc('id')
-            ->paginate((int) ($filters['per_page'] ?? 20))
-            ->withQueryString();
-
-        return AdminCouponResource::collection($coupons);
+        return AdminCouponResource::collection(
+            $this->coupons->paginateWithStats($filters['search'] ?? null, (int) ($filters['per_page'] ?? 20))
+        );
     }
 
     public function store(CouponRequest $request): JsonResponse
     {
-        $coupon = Coupon::create($request->validated());
-
-        return (new AdminCouponResource($this->fresh($coupon)))->response()->setStatusCode(201);
+        return (new AdminCouponResource($this->coupons->store($request->validated())))->response()->setStatusCode(201);
     }
 
     public function update(CouponRequest $request, Coupon $coupon): AdminCouponResource
     {
-        $coupon->update($request->validated());
-
-        return new AdminCouponResource($this->fresh($coupon));
+        return new AdminCouponResource($this->coupons->update($coupon, $request->validated()));
     }
 
     /** Used coupons are kept for order history and reporting — switch them off instead. */
     public function destroy(Coupon $coupon): JsonResponse
     {
-        $orders = $coupon->orders()->count();
+        $orders = $this->coupons->orderCount($coupon);
 
         if ($orders > 0) {
             throw ValidationException::withMessages([
@@ -60,21 +50,8 @@ class CouponController extends Controller
             ]);
         }
 
-        $coupon->delete();
+        $this->coupons->delete($coupon);
 
         return response()->json(['status' => 'success', 'message' => 'Coupon deleted.']);
-    }
-
-    private function withStats(Builder $query): Builder
-    {
-        return $query
-            ->withCount('redemptions as uses')
-            ->withSum('redemptions as discount_given', 'discount_amount')
-            ->withSum('redemptions as revenue', 'total');
-    }
-
-    private function fresh(Coupon $coupon): Coupon
-    {
-        return $this->withStats(Coupon::query())->findOrFail($coupon->id);
     }
 }

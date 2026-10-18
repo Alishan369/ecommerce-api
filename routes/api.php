@@ -57,7 +57,9 @@ Route::prefix('v1')->name('v1.')->group(function () {
     /* ---------------------------------------------------------------
      | Public catalogue (read-only, cacheable)
      * ------------------------------------------------------------- */
-    Route::middleware('throttle:public')->group(function () {
+    // Shared caches (browser, Vercel, CDN) may keep these for a minute and revalidate with the ETag,
+    // so most storefront page loads never reach PHP or the database. Signed-in requests stay no-store.
+    Route::middleware(['throttle:public', 'cache.headers:public;max_age=60;etag'])->group(function () {
 
         // Storefront settings (shipping) the SPA loads at startup.
         Route::get('store', StoreController::class)->name('store');

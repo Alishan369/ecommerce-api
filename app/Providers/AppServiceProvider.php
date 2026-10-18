@@ -4,15 +4,25 @@ namespace App\Providers;
 
 use App\Models\User;
 use App\Repositories\AddressRepository;
+use App\Repositories\BannerRepository;
 use App\Repositories\CartRepository;
 use App\Repositories\CategoryRepository;
+use App\Repositories\CouponRepository;
 use App\Repositories\Interfaces\AddressRepositoryInterface;
+use App\Repositories\Interfaces\BannerRepositoryInterface;
 use App\Repositories\Interfaces\CartRepositoryInterface;
 use App\Repositories\Interfaces\CategoryRepositoryInterface;
+use App\Repositories\Interfaces\CouponRepositoryInterface;
 use App\Repositories\Interfaces\OrderRepositoryInterface;
 use App\Repositories\Interfaces\ProductRepositoryInterface;
+use App\Repositories\Interfaces\ScentFamilyRepositoryInterface;
+use App\Repositories\Interfaces\SiteMediaRepositoryInterface;
+use App\Repositories\Interfaces\UserRepositoryInterface;
 use App\Repositories\OrderRepository;
 use App\Repositories\ProductRepository;
+use App\Repositories\ScentFamilyRepository;
+use App\Repositories\SiteMediaRepository;
+use App\Repositories\UserRepository;
 use App\Services\Payments\RazorpayGateway;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -33,6 +43,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(CartRepositoryInterface::class, CartRepository::class);
         $this->app->bind(OrderRepositoryInterface::class, OrderRepository::class);
         $this->app->bind(AddressRepositoryInterface::class, AddressRepository::class);
+        $this->app->bind(BannerRepositoryInterface::class, BannerRepository::class);
+        $this->app->bind(CouponRepositoryInterface::class, CouponRepository::class);
+        $this->app->bind(ScentFamilyRepositoryInterface::class, ScentFamilyRepository::class);
+        $this->app->bind(SiteMediaRepositoryInterface::class, SiteMediaRepository::class);
+        $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
 
         $this->app->singleton(RazorpayGateway::class, fn () => RazorpayGateway::fromConfig());
     }

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SiteMedia;
-use App\Support\StoredImage;
+use App\Repositories\Interfaces\SiteMediaRepositoryInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -13,12 +13,12 @@ use Illuminate\Validation\ValidationException;
 /** Replace or reset the photo/video in a fixed storefront slot. Images are compressed to WebP. */
 class SiteMediaController extends Controller
 {
+    public function __construct(private readonly SiteMediaRepositoryInterface $siteMedia) {}
+
     public function index(): JsonResponse
     {
-        $media = SiteMedia::query()->whereIn('slot', SiteMedia::SLOTS)->get()->map->toPublicArray()->values();
-
         return response()->json([
-            'data' => $media,
+            'data' => $this->siteMedia->all()->map->toPublicArray()->values(),
             'slots' => SiteMedia::SLOTS,
             'video_slots' => SiteMedia::VIDEO_SLOTS,
         ]);
@@ -46,33 +46,13 @@ class SiteMediaController extends Controller
             throw ValidationException::withMessages(['image' => 'Choose a photo or video to upload.']);
         }
 
-        $media = SiteMedia::firstOrNew(['slot' => $slot]);
-        // A video needs a still to show while it loads (and for reduced motion) — the photo.
-        $fields = ['image' => 2000, 'video' => null];
-
-        if (! $media->exists) {
-            foreach ($fields as $field => $maxSize) {
-                $data = StoredImage::fromInput($data, 'site-media', $field, $maxSize);
-            }
-            $media->fill($data)->save();
-        } else {
-            StoredImage::update($media, $data, 'site-media', $fields);
-        }
-
-        // Nothing left in the slot → back to the storefront default.
-        if (! $media->image && ! $media->video) {
-            $media->delete();
-
-            return response()->json(['data' => null]);
-        }
-
-        return response()->json(['data' => $media->fresh()->toPublicArray()]);
+        return response()->json(['data' => $this->siteMedia->save($slot, $data)?->toPublicArray()]);
     }
 
     /** Reset to the storefront default. */
     public function destroy(string $slot): JsonResponse
     {
-        SiteMedia::where('slot', $slot)->first()?->delete();
+        $this->siteMedia->reset($slot);
 
         return response()->json(['status' => 'success', 'message' => 'Reset to the default.']);
     }

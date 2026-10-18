@@ -4,11 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ScentFamilyResource;
-use App\Models\ScentFamily;
-use App\Support\StoredImage;
+use App\Repositories\Interfaces\ScentFamilyRepositoryInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /** Rename, recolour, reorder, show/hide and photograph the scent families. Photos are compressed to WebP. */
@@ -16,14 +14,16 @@ class ScentFamilyController extends Controller
 {
     private const HEX = 'regex:/^#[0-9a-fA-F]{6}$/';
 
+    public function __construct(private readonly ScentFamilyRepositoryInterface $families) {}
+
     public function index()
     {
-        return ScentFamilyResource::collection($this->all());
+        return ScentFamilyResource::collection($this->families->allWithProductCount());
     }
 
     public function update(Request $request, string $key): ScentFamilyResource
     {
-        $family = ScentFamily::where('key', $key)->firstOrFail();
+        $family = $this->families->findByKey($key);
 
         $data = $request->validate([
             'label' => ['sometimes', 'string', 'max:40', Rule::unique('scent_families', 'label')->ignore($family->id)],
@@ -51,31 +51,22 @@ class ScentFamilyController extends Controller
             }
         }
 
-        StoredImage::update($family, $data, 'scent-families', ['image' => 1200]);
+        $this->families->update($family, $data);
 
-        return new ScentFamilyResource($this->all()->firstWhere('key', $key));
+        return new ScentFamilyResource($this->families->allWithProductCount()->firstWhere('key', $key));
     }
 
     /** New display order: every family key, first to last. */
     public function reorder(Request $request): JsonResponse
     {
-        $keys = ScentFamily::pluck('key')->all();
+        $keys = $this->families->keys();
         $data = $request->validate([
             'keys' => ['required', 'array', 'size:'.count($keys)],
             'keys.*' => ['required', 'string', 'distinct', Rule::in($keys)],
         ], ['keys.size' => 'Send every family once, in the new order.']);
 
-        DB::transaction(function () use ($data) {
-            foreach ($data['keys'] as $position => $key) {
-                ScentFamily::where('key', $key)->update(['sort_order' => $position]);
-            }
-        });
+        $this->families->reorder($data['keys']);
 
-        return ScentFamilyResource::collection($this->all())->response();
-    }
-
-    private function all()
-    {
-        return ScentFamily::query()->select('scent_families.*')->withProductCount()->ordered()->get();
+        return ScentFamilyResource::collection($this->families->allWithProductCount())->response();
     }
 }
