@@ -1,3 +1,4 @@
+
 volumes:
   - name: image-storage
-    mount: /data/images
+    mount: /app/storage/app/public
