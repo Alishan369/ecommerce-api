@@ -1,4 +1,9 @@
 
+kind: wasmer.io/App.v0
+owner: alishan369
+name: ecommerce-api
+package: .
+
 volumes:
   - name: image-storage
     mount: /app/storage/app/public
