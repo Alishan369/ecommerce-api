@@ -6,6 +6,7 @@ use App\Mail\OrderStatusUpdated;
 use App\Models\Order;
 use App\Models\User;
 use App\Notifications\ResetPasswordLink;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -24,8 +25,17 @@ Route::get('/', fn () => response()->json([
 // Serve uploaded files straight from the public disk, so images work on hosts
 // where the public/storage symlink (artisan storage:link) can't be created.
 Route::get('/storage/{path}', function (string $path) {
+    abort_if(str_contains($path, '..'), 404);
+
     $file = storage_path('app/public/'.$path);
-    abort_unless(is_file($file) && ! str_contains($path, '..'), 404);
+
+    // A fresh volume starts empty: restore the file from the committed catalogue media on first request.
+    if (! is_file($file)) {
+        $seed = database_path('seeders/catalog/media/'.$path);
+        abort_unless(is_file($seed), 404);
+        File::ensureDirectoryExists(dirname($file));
+        File::copy($seed, $file);
+    }
 
     return response()->file($file);
 })->where('path', '.*');
