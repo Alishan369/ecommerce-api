@@ -21,7 +21,16 @@ Route::get('/', fn () => response()->json([
     'health' => url('/api/v1/health'),
 ]));
 
-Route::get('/robots.txt', [SeoController::class, 'robots']);
+// Serve uploaded files straight from the public disk, so images work on hosts
+// where the public/storage symlink (artisan storage:link) can't be created.
+Route::get('/storage/{path}', function (string $path) {
+    $file = storage_path('app/public/'.$path);
+    abort_unless(is_file($file) && ! str_contains($path, '..'), 404);
+
+    return response()->file($file);
+})->where('path', '.*');
+
+Route::get('/robots.txt',[SeoController::class, 'robots']);
 Route::get('/sitemap.xml', [SeoController::class, 'sitemap']);
 
 // Local only: preview the customer emails in a browser, e.g. /dev/mail/placed or /dev/mail/shipped.
